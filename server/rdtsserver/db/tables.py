@@ -1,0 +1,249 @@
+from datetime import datetime
+from pathlib import Path
+
+import pydantic
+from fastapi import File
+from pydantic import Json
+from sqlmodel import select
+
+from sqlmodel import SQLModel, Session
+from typing import Optional, Dict
+from enum import Enum, auto
+from sqlmodel import Field, Relationship
+from sqlalchemy import DateTime, JSON, Column
+
+from rdtsserver.dependencies import engine
+
+class RDTSDatabase(SQLModel):
+    pass
+
+
+class CrystalStatus(Enum):
+    USED = auto()  # используется - используется в данный timestamp сборкой assembly_id.
+    UNUSED = auto()  # не используется - использовался некоторой сборкой, но потом был удален или перемещен в другую
+    DESTROYED = auto()  # уничтожен - не используется никакой сборкой. assembly_id и place отсутствует
+
+
+# ================= Assembly =================
+class AssemblyBase(RDTSDatabase):
+    name: str
+
+
+class Assembly(AssemblyBase, table=True):
+    __tablename__ = "assemblies"
+    idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    crystals: list["CrystalState"] = Relationship(back_populates="assembly")
+
+    testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="assembly")
+
+    @property
+    def crystal_quantity(self) -> int:
+        with (Session(engine) as session):
+            crystal_state = session.exec(select(CrystalState)
+                                         .where(CrystalState.assembly_idx == self.idx)
+                                         .order_by(CrystalState.place.desc())
+                                         ).first()
+            if crystal_state:
+                return crystal_state.place + 1
+        return 0
+
+    @property
+    def current_crystals(self) -> list[Optional[str]]:
+        return self.crystals_at_timestamp(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+    def crystals_at_timestamp(self, timestamp) -> list[Optional[str]]:
+        crystals = []
+        n = self.crystal_quantity
+        for place in range(n):
+            with Session(engine) as session:
+                crystal_state = session.exec(select(CrystalState)
+                                             .where(CrystalState.assembly_idx == self.idx)
+                                             .where(CrystalState.place == place)
+                                             .where(CrystalState.timestamp <= timestamp)
+                                             .order_by(CrystalState.timestamp.desc())
+                                             ).first()
+                name = None
+                if crystal_state and (crystal_state.status == CrystalStatus.USED):
+                    crystal = session.exec(select(Crystal).where(Crystal.idx == crystal_state.idx)).first()
+                    if crystal:
+                        name = crystal.name
+                crystals.append(name)
+        return crystals
+
+
+class AssemblyCreate(AssemblyBase):
+    crystals: list[str]
+
+
+class AssemblyRead(AssemblyBase):
+    idx: int
+    crystal_quantity: int
+    current_crystals: list[Optional[str]]
+
+
+# ================= Crystal =================
+
+class CrystalBase(RDTSDatabase):
+    name: str
+
+
+class Crystal(CrystalBase, table=True):
+    __tablename__ = "crystals"
+    idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+
+    crystal_states: list["CrystalState"] = Relationship(back_populates="crystal")
+
+    @property
+    def current_assembly(self) -> Optional[str]:
+        with Session(engine) as session:
+            query = session.query(CrystalState).filter(CrystalState.idx == self.idx)
+            query = query.order_by(CrystalState.timestamp.desc())
+            crystal_state = query.first()
+            if crystal_state and crystal_state.status == CrystalStatus.USED:
+                assembly = session.exec(
+                    select(Assembly).where(Assembly.idx == crystal_state.assembly_idx)).one_or_none()
+                if assembly:
+                    return assembly.name
+            return None
+
+    @property
+    def current_status(self) -> Optional[CrystalStatus]:
+        with Session(engine) as session:
+            query = session.query(CrystalState).filter(CrystalState.idx == self.idx)
+            query = query.order_by(CrystalState.timestamp.desc())
+            crystal_state = query.first()
+            return crystal_state.status
+
+
+class CrystalCreate(CrystalBase):
+    pass
+
+
+class CrystalRead(CrystalBase):
+    idx: int
+    current_assembly: Optional[str]
+    current_status: Optional["CrystalStatus"]
+
+
+# ================= CrystalState =================
+class CrystalStateBase(RDTSDatabase):
+    idx: int
+    timestamp: str
+    assembly_idx: int
+    place: int
+    status: CrystalStatus
+
+
+class CrystalState(CrystalStateBase, table=True):
+    __tablename__ = "crystals_states"
+    timestamp: str = Field(sa_type=DateTime, primary_key=True)
+    idx: int = Field(foreign_key="crystals.idx", primary_key=True)
+    assembly_idx: int = Field(foreign_key="assemblies.idx")
+
+    assembly: Assembly = Relationship(back_populates="crystals")
+    crystal: Crystal = Relationship(back_populates="crystal_states")
+
+
+class CrystalStateCreate(CrystalStateBase):
+    pass
+
+
+class CrystalStateRead(CrystalStateBase):
+    pass
+
+
+# ================= TestSuite =================
+
+class TestSuiteBase(RDTSDatabase):
+    name: str
+    version: str
+
+
+class TestSuite(TestSuiteBase, table=True):
+    __tablename__ = "testsuites"
+    idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    timestamp: str
+
+    testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="testsuite")
+
+    @property
+    def versions(self) -> list[str]:
+        with Session(engine) as session:
+            testsuites = session.exec(select(TestSuite).where(TestSuite.name == self.name)).all()
+            return [testsuite.name for testsuite in testsuites]
+
+    @property
+    def path(self) -> str:
+        return f"/testsuites/{self.name}_v{self.version.replace('.', '-')}.zip"
+
+    @property
+    def results_path(self) -> str:
+        return f"/results/{self.name}_v{self.version.replace('.', '-')}"
+
+
+class TestSuiteRead(TestSuiteBase):
+    idx: int
+
+
+# ================= TestResult =================
+
+# class TestResultBase(RDTSDatabase):
+#    testsuiteresult_idx: int
+#    name: str
+#    result: str
+
+
+# class TestResult(TestResultBase, table=True):
+#    __tablename__ = "testresults"
+#    testsuiteresult_idx: int = Field(primary_key=True, foreign_key="testsuiteresults.idx")
+#    name: str = Field(primary_key=True)
+#
+#    testsuiteresult: "TestSuiteResult" = Relationship(back_populates="testsresults")
+
+# class TestResultCreate(TestResultBase):
+#    pass
+#    result: JSON
+
+
+# ================= TestSuiteResult =================
+class TestSuiteResultBase(RDTSDatabase):
+    testsuite_idx: int
+    assembly_idx: int
+
+
+#    params: JSON
+
+
+class TestSuiteResult(TestSuiteResultBase, table=True):
+    __tablename__ = "testsuiteresults"
+    idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    testsuite_idx: int = Field(foreign_key="testsuites.idx")
+    assembly_idx: int = Field(foreign_key="assemblies.idx")
+    timestamp: str = Field(sa_type=DateTime)
+    #    testsresults: list[TestResult] = Relationship(back_populates="testsuiteresult")
+    testsuite: TestSuite = Relationship(back_populates="testsuiteresults")
+    assembly: Assembly = Relationship(back_populates="testsuiteresults")
+
+    @property
+    def result_path(self) -> str:
+        return f"{self.testsuite.results_path}/{self.assembly.name}-{self.timestamp}.json"
+
+    @property
+    def config_path(self) -> str:
+        return f"{self.testsuite.results_path}/config-{self.assembly.name}-{self.timestamp}.json"
+
+
+class TestSuiteResultCreate(TestSuiteResultBase):
+    pass
+class TestSuiteResultInfo(TestSuiteResultBase):
+    idx: int
+
+# Порядок сохранения результатов тестов (Клиент):
+# Запрос на обновление/создание сборки (+ получаем id)
+# Запрос на обновление/создание набора тестов (+ получаем id)
+# Запрос на создание TestSuiteResult
+
+# Порядок сохранения набора тестов (Сервер):
+# Что получаем? название, zip c python модулем
+
+# Порядок сохранения результатов набора тестов (Сервер):

@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "rdts-server"
+version = "1.0.0"
+description = ""
+authors = ["BaDum-Tss <99732685+BuDum-Tss@users.noreply.github.com>"]
+readme = "README.md"
+packages = [{include = "rdtsserver"}]
+
+[tool.poetry.dependencies]
+python = "^3.11.6"
+fastapi = "^0.104.1"
+sqlmodel = "^0.0.12"
+uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
+psycopg2-binary = "^2.9.9"
+python-multipart = "^0.0.6"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.1.6"
+mypy = "^1.7.1"
+pytest = "^7.4.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

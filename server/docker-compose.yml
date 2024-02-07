@@ -1,0 +1,36 @@
+version: "3"
+services:
+    postgres:
+        image: postgres:13.3
+        container_name: postgres
+        environment:
+            POSTGRES_DB: rdtsdb
+            POSTGRES_USER: rdts
+            POSTGRES_PASSWORD: rdts
+        volumes:
+            - sql_volume:/var/lib/postgresql/data
+        ports:
+            - "5432:5432"
+        networks:
+            - rdts_network
+
+    server:
+        build:
+            context: .
+        container_name: backend
+        depends_on:
+            - postgres
+        volumes:
+            - testsuites_volume:/testsuites
+            - results_volume:/results
+        ports:
+            - "8000:8000"
+        networks:
+            - rdts_network
+
+volumes:
+    sql_volume:
+    testsuites_volume:
+    results_volume:
+networks:
+    rdts_network:
