@@ -31,7 +31,8 @@ class AssemblyBase(RDTSDatabase):
 
 class Assembly(AssemblyBase, table=True):
     __tablename__ = "assemblies"
-    idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    #idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    name: str = Field(None, primary_key=True)
     crystals: list["CrystalState"] = Relationship(back_populates="assembly")
 
     testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="assembly")
@@ -39,12 +40,13 @@ class Assembly(AssemblyBase, table=True):
     @property
     def crystal_quantity(self) -> int:
         with (Session(engine) as session):
-            crystal_state = session.exec(select(CrystalState)
-                                         .where(CrystalState.assembly_idx == self.idx)
-                                         .order_by(CrystalState.place.desc())
-                                         ).first()
-            if crystal_state:
-                return crystal_state.place + 1
+            crystal_count = session.query(select(CrystalState).where(CrystalState.assembly_name == self.name)).count()
+            #crystal_state = session.exec(select(CrystalState)
+            #                             .where(CrystalState.assembly_name == self.name)
+            #                             .order_by(CrystalState.place.desc())
+            #                             ).first()
+            if crystal_count:
+                return crystal_count
         return 0
 
     @property
@@ -57,14 +59,14 @@ class Assembly(AssemblyBase, table=True):
         for place in range(n):
             with Session(engine) as session:
                 crystal_state = session.exec(select(CrystalState)
-                                             .where(CrystalState.assembly_idx == self.idx)
+                                             .where(CrystalState.assembly_name == self.name)
                                              .where(CrystalState.place == place)
                                              .where(CrystalState.timestamp <= timestamp)
                                              .order_by(CrystalState.timestamp.desc())
                                              ).first()
                 name = None
                 if crystal_state and (crystal_state.status == CrystalStatus.USED):
-                    crystal = session.exec(select(Crystal).where(Crystal.idx == crystal_state.idx)).first()
+                    crystal = session.exec(select(Crystal).where(Crystal.name == crystal_state.crystal_name)).first()
                     if crystal:
                         name = crystal.name
                 crystals.append(name)
@@ -76,7 +78,8 @@ class AssemblyCreate(AssemblyBase):
 
 
 class AssemblyRead(AssemblyBase):
-    idx: int
+    #idx: int
+    name: str
     crystal_quantity: int
     current_crystals: list[Optional[str]]
 
@@ -89,19 +92,19 @@ class CrystalBase(RDTSDatabase):
 
 class Crystal(CrystalBase, table=True):
     __tablename__ = "crystals"
-    idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    name: str = Field(None, primary_key=True)
 
     crystal_states: list["CrystalState"] = Relationship(back_populates="crystal")
 
     @property
     def current_assembly(self) -> Optional[str]:
         with Session(engine) as session:
-            query = session.query(CrystalState).filter(CrystalState.idx == self.idx)
+            query = session.query(CrystalState).filter(CrystalState.crystal_name == self.name)
             query = query.order_by(CrystalState.timestamp.desc())
             crystal_state = query.first()
             if crystal_state and crystal_state.status == CrystalStatus.USED:
                 assembly = session.exec(
-                    select(Assembly).where(Assembly.idx == crystal_state.assembly_idx)).one_or_none()
+                    select(Assembly).where(Assembly.name == crystal_state.assembly_name)).one_or_none()
                 if assembly:
                     return assembly.name
             return None
@@ -109,7 +112,7 @@ class Crystal(CrystalBase, table=True):
     @property
     def current_status(self) -> Optional[CrystalStatus]:
         with Session(engine) as session:
-            query = session.query(CrystalState).filter(CrystalState.idx == self.idx)
+            query = session.query(CrystalState).filter(CrystalState.crystal_name == self.name)
             query = query.order_by(CrystalState.timestamp.desc())
             crystal_state = query.first()
             return crystal_state.status
@@ -120,7 +123,7 @@ class CrystalCreate(CrystalBase):
 
 
 class CrystalRead(CrystalBase):
-    idx: int
+    name: str
     current_assembly: Optional[str]
     current_status: Optional["CrystalStatus"]
 
@@ -128,17 +131,19 @@ class CrystalRead(CrystalBase):
 # ================= CrystalState =================
 class CrystalStateBase(RDTSDatabase):
     idx: int
+    crystal_name: str
+    assembly_name: str
     timestamp: str
-    assembly_idx: int
     place: int
     status: CrystalStatus
 
 
 class CrystalState(CrystalStateBase, table=True):
     __tablename__ = "crystals_states"
-    timestamp: str = Field(sa_type=DateTime, primary_key=True)
-    idx: int = Field(foreign_key="crystals.idx", primary_key=True)
-    assembly_idx: int = Field(foreign_key="assemblies.idx")
+    idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    crystal_name: str = Field(foreign_key="crystals.name")
+    assembly_name: str = Field(foreign_key="assemblies.name")
+    timestamp: str = Field(sa_type=DateTime)
 
     assembly: Assembly = Relationship(back_populates="crystals")
     crystal: Crystal = Relationship(back_populates="crystal_states")
