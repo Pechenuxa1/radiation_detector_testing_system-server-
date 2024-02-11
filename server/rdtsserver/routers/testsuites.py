@@ -22,26 +22,19 @@ def handle_create_testsuite(name: str,
     return db_testsuite.idx
 
 
-@router.get("/{idx_or_name}", response_model=Optional[TestSuiteRead])
-def handle_read_testsuite(idx_or_name: str):
+@router.get("/{name}", response_model=Optional[TestSuiteRead])
+def handle_read_testsuite(name: str):
     with (Session(engine) as session):
-        if idx_or_name.isdigit():
-            return session.exec(select(TestSuite).where(TestSuite.idx == int(idx_or_name))).one_or_none()
-        else:
-            return session.exec(select(TestSuite)
-                                .where(TestSuite.name == idx_or_name)
+        return session.exec(select(TestSuite)
+                                .where(TestSuite.name == name)
                                 .order_by(TestSuite.version.desc())).first()
 
 
-@router.get("/download/{idx_or_name}")
-def handle_download_testsuite(idx_or_name: str):
+@router.get("/download/{name}")
+def handle_download_testsuite(name: str):
     with (Session(engine) as session):
-        if idx_or_name.isdigit():
-            testsuite: TestSuite = session.exec(select(TestSuite)
-                                                .where(TestSuite.idx == int(idx_or_name))).one_or_none()
-        else:
-            testsuite: TestSuite = session.exec(select(TestSuite)
-                                                .where(TestSuite.name == idx_or_name)
+        testsuite: TestSuite = session.exec(select(TestSuite)
+                                                .where(TestSuite.name == name)
                                                 .order_by(TestSuite.version.desc())).first()
         if testsuite:
             return FileResponse(path=testsuite.path, filename=f"{testsuite.name}", media_type='application/zip')

@@ -40,13 +40,13 @@ class Assembly(AssemblyBase, table=True):
     @property
     def crystal_quantity(self) -> int:
         with (Session(engine) as session):
-            crystal_count = session.query(select(CrystalState).where(CrystalState.assembly_name == self.name)).count()
-            #crystal_state = session.exec(select(CrystalState)
-            #                             .where(CrystalState.assembly_name == self.name)
-            #                             .order_by(CrystalState.place.desc())
-            #                             ).first()
-            if crystal_count:
-                return crystal_count
+            #crystal_count = session.query(select(CrystalState).where(CrystalState.assembly_name == self.name)).count()
+            crystal_state = session.exec(select(CrystalState)
+                                         .where(CrystalState.assembly_name == self.name)
+                                         .order_by(CrystalState.place.desc())
+                                         ).first()
+            if crystal_state.place:
+                return crystal_state.place + 1
         return 0
 
     @property
@@ -130,7 +130,7 @@ class CrystalRead(CrystalBase):
 
 # ================= CrystalState =================
 class CrystalStateBase(RDTSDatabase):
-    idx: int
+    #idx: int
     crystal_name: str
     assembly_name: str
     timestamp: str
@@ -212,8 +212,9 @@ class TestSuiteRead(TestSuiteBase):
 
 # ================= TestSuiteResult =================
 class TestSuiteResultBase(RDTSDatabase):
-    testsuite_idx: int
-    assembly_idx: int
+    testsuite_name: str
+    testsuite_version: str
+    assembly_name: str
 
 
 #    params: JSON
@@ -222,8 +223,10 @@ class TestSuiteResultBase(RDTSDatabase):
 class TestSuiteResult(TestSuiteResultBase, table=True):
     __tablename__ = "testsuiteresults"
     idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    #testsuite_name: str = Field(foreign_key="testsuites.name")
+    #testsuite_version: str = Field(foreign_key="testsuites.version")
     testsuite_idx: int = Field(foreign_key="testsuites.idx")
-    assembly_idx: int = Field(foreign_key="assemblies.idx")
+    assembly_name: str = Field(foreign_key="assemblies.name")
     timestamp: str = Field(sa_type=DateTime)
     #    testsresults: list[TestResult] = Relationship(back_populates="testsuiteresult")
     testsuite: TestSuite = Relationship(back_populates="testsuiteresults")
@@ -241,7 +244,7 @@ class TestSuiteResult(TestSuiteResultBase, table=True):
 class TestSuiteResultCreate(TestSuiteResultBase):
     pass
 class TestSuiteResultInfo(TestSuiteResultBase):
-    idx: int
+    pass
 
 # Порядок сохранения результатов тестов (Клиент):
 # Запрос на обновление/создание сборки (+ получаем id)

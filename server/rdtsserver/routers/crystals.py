@@ -11,16 +11,16 @@ from rdtsserver.dependencies import engine
 router = APIRouter()
 
 
-@router.post("", response_model=int)
-def handle_create_crystal(crystal: CrystalCreate, response: Response) -> int:
+@router.post("", response_model=str)
+def handle_create_crystal(crystal: CrystalCreate, response: Response) -> str:
     db_crystal, response.status_code = create_crystal(crystal)
-    return db_crystal.idx
+    return db_crystal.name
 
 
-@router.get("/{idx}", response_model=Optional[CrystalRead])
-def handle_read_crystal(idx: int) -> Crystal:
+@router.get("/{name}", response_model=Optional[CrystalRead])
+def handle_read_crystal(name: str) -> Crystal:
     with Session(engine) as session:
-        return session.exec(select(Crystal).where(Crystal.idx == idx)).one_or_none()
+        return session.exec(select(Crystal).where(Crystal.name == name)).one_or_none()
 
 
 @router.get("", response_model=list[CrystalRead])
