@@ -1,10 +1,12 @@
+from datetime import datetime
 from fastapi import APIRouter, status
+from rdtsserver.routers.crystalstates import create_crystal_state
 from sqlalchemy.orm import Session
 from typing import Optional
 
 from fastapi import Response
 from sqlmodel import Session, select
-from rdtsserver.db.tables import CrystalCreate, Crystal, CrystalRead
+from rdtsserver.db.tables import CrystalCreate, Crystal, CrystalRead, CrystalStateCreate, CrystalStatus
 
 from rdtsserver.dependencies import engine
 
@@ -39,4 +41,13 @@ def create_crystal(crystal: CrystalCreate) -> (Crystal, status):
         session.add(db_crystal)
         session.commit()
         session.refresh(db_crystal)
+
+        #TODO: сделать проверку полей assembly_name и place на null
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        crystal_state = CrystalStateCreate(crystal_name=crystal.name,
+                                           assembly_name=crystal.assembly_name,
+                                           timestamp=str(timestamp),
+                                           place=crystal.place,
+                                           status=CrystalStatus.USED)
+        db_crystal_state, status_code = create_crystal_state(crystal_state)
         return db_crystal, status.HTTP_201_CREATED

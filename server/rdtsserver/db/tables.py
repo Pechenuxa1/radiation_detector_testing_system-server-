@@ -119,7 +119,9 @@ class Crystal(CrystalBase, table=True):
 
 
 class CrystalCreate(CrystalBase):
-    pass
+    name: str
+    assembly_name: str
+    place: int
 
 
 class CrystalRead(CrystalBase):
@@ -212,9 +214,11 @@ class TestSuiteRead(TestSuiteBase):
 
 # ================= TestSuiteResult =================
 class TestSuiteResultBase(RDTSDatabase):
-    testsuite_name: str
-    testsuite_version: str
+    #testsuite_name: str
+    #testsuite_version: str
+    testsuite_idx: int
     assembly_name: str
+    timestamp: str
 
 
 #    params: JSON
