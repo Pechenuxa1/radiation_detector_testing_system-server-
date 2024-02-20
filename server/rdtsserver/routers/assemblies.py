@@ -47,8 +47,14 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
 
         for place, crystal_name in enumerate(crystals):
             if crystal_name:
-                db_crystal, crystal_status_code = create_crystal(CrystalCreate(name=crystal_name))
-                pull_out_this_crystal_from_some_assembly(db_crystal.name, CrystalStatus.UNUSED)
+
+                db_crystal, crystal_status_code = create_crystal(CrystalCreate(name=crystal_name,
+                                                                               assembly_name=assembly.name,
+                                                                               place=place
+                                                                               )
+                                                                 )
+
+                pull_out_this_crystal_from_some_assembly(crystal_name, CrystalStatus.UNUSED)
                 pull_out_some_crystal_from_this_assembly(db_assembly.name, place, CrystalStatus.UNUSED)
 
                 crystal_state = CrystalStateCreate(timestamp=str(timestamp),

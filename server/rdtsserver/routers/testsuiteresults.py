@@ -2,20 +2,21 @@ from datetime import datetime
 from typing import Optional
 from fastapi import Response, status, APIRouter, UploadFile
 from pydantic import Json
-from sqlalchemy import select, JSON
+from sqlalchemy import select, JSON, and_, func
 from sqlmodel import Session, select
 from starlette.responses import FileResponse, JSONResponse
 from typing import Dict
 
-from rdtsserver.db.tables import (TestSuiteResult, TestSuiteResultInfo, TestSuiteResultCreate, TestSuiteResultBase,
-                                  TestSuite)
+from rdtsserver.db.tables import (TestSuiteResult, TestSuiteResultInfo, TestSuiteResultCreate,
+                                  TestSuiteResultBase,
+                                  TestSuite, CrystalState, CrystalStatus)
 from rdtsserver.dependencies import engine
 
 router = APIRouter()
 
 
 @router.post("", status_code=207, response_model=Optional[TestSuiteResultCreate])
-def handle_create_testsuiteresult(testsuite_idx: str,
+def handle_create_testsuiteresult(testsuite_idx: int,
                                   assembly_name: str,
                                   config: UploadFile,
                                   result: UploadFile,
@@ -24,13 +25,17 @@ def handle_create_testsuiteresult(testsuite_idx: str,
                                                                       assembly_name,
                                                                       config,
                                                                       result)
-    return db_testsuiteresult
+    tsr = TestSuiteResultCreate(testsuite_idx=testsuite_idx, timestamp=str(db_testsuiteresult.timestamp))
+    return tsr
 
 
 @router.get("/{idx}", response_model=Optional[TestSuiteResultInfo])
 def handle_read_testsuiteresult_config(idx: int):
     with Session(engine) as session:
-        return session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
+        tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
+        tsr.timestamp = str(tsr.timestamp)
+        return tsr
+
 
 @router.get("/{idx}/config")
 def handle_read_testsuiteresult(idx: int):
@@ -39,6 +44,7 @@ def handle_read_testsuiteresult(idx: int):
         return FileResponse(path=db_testsuiteresult.config_path,
                             filename=f"config-{db_testsuiteresult.assembly.name}-{db_testsuiteresult.timestamp}",
                             media_type='application/json')
+
 
 @router.get("{idx}/result")
 def handle_read_testsuiteresult(idx: int):
@@ -60,15 +66,31 @@ def save_bytes_to_file(file_path, content: bytes):
         file.write(content)
 
 
-def create_testsuiteresult(testsuite_idx: str,
+def create_testsuiteresult(testsuite_idx: int,
                            assembly_name: str,
                            config: UploadFile,
                            result: UploadFile) -> (TestSuiteResult, status):
-    with Session(engine) as session:
+    with (Session(engine) as session):
+        subquery = (session.query(
+            CrystalState.crystal_name,
+            func.max(CrystalState.timestamp).label('max_time')
+        ).group_by(CrystalState.crystal_name).subquery())
+
+        query = (
+            session.query(CrystalState)
+            .join(subquery, and_(CrystalState.crystal_name == subquery.c.crystal_name,
+                                 CrystalState.timestamp == subquery.c.max_time,
+                                 CrystalState.assembly_name == assembly_name))
+        )
+
+        crystals = query.all()
+
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
         db_testsuiteresult = TestSuiteResult(testsuite_idx=testsuite_idx,
-                                             assembly_name=assembly_name,
-                                             timestamp=timestamp)
+                                             crystal_states=crystals,
+                                             timestamp=str(timestamp)
+                                             )
         session.add(db_testsuiteresult)
         session.commit()
         session.refresh(db_testsuiteresult)

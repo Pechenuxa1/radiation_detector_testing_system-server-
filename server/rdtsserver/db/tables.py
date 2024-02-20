@@ -4,15 +4,17 @@ from pathlib import Path
 import pydantic
 from fastapi import File
 from pydantic import Json
+from sqlalchemy.orm import relationship
 from sqlmodel import select
 
 from sqlmodel import SQLModel, Session
 from typing import Optional, Dict
 from enum import Enum, auto
 from sqlmodel import Field, Relationship
-from sqlalchemy import DateTime, JSON, Column
+from sqlalchemy import DateTime, JSON, Column, Table, ForeignKey, Integer
 
 from rdtsserver.dependencies import engine
+
 
 class RDTSDatabase(SQLModel):
     pass
@@ -24,6 +26,22 @@ class CrystalStatus(Enum):
     DESTROYED = auto()  # уничтожен - не используется никакой сборкой. assembly_id и place отсутствует
 
 
+#crystals_states_testsuiteresults = Table('crystal_states_testsuiteresults', RDTSDatabase.metadata,
+#                                         Column('crystalstate_idx', Integer,
+#                                                ForeignKey('crystals_states.idx')
+#                                                ),
+#                                         Column('testsuiteresult_idx', Integer,
+#                                                ForeignKey('testsuiteresults.idx')
+#                                                )
+#                                         )
+
+class CrystalStateTestsuiteresult(RDTSDatabase, table=True):
+    __tablename__ = "crystalstate_testsuiteresult_table"
+    idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    crystalstate_idx: Optional[int] = Field(None, foreign_key="crystals_states.idx", primary_key=True)
+    testsuiteresult_idx: Optional[int] = Field(None, foreign_key="testsuiteresults.idx", primary_key=True)
+
+
 # ================= Assembly =================
 class AssemblyBase(RDTSDatabase):
     name: str
@@ -31,16 +49,16 @@ class AssemblyBase(RDTSDatabase):
 
 class Assembly(AssemblyBase, table=True):
     __tablename__ = "assemblies"
-    #idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    # idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     name: str = Field(None, primary_key=True)
     crystals: list["CrystalState"] = Relationship(back_populates="assembly")
 
-    testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="assembly")
+    # testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="assembly")
 
     @property
     def crystal_quantity(self) -> int:
         with (Session(engine) as session):
-            #crystal_count = session.query(select(CrystalState).where(CrystalState.assembly_name == self.name)).count()
+            # crystal_count = session.query(select(CrystalState).where(CrystalState.assembly_name == self.name)).count()
             crystal_state = session.exec(select(CrystalState)
                                          .where(CrystalState.assembly_name == self.name)
                                          .order_by(CrystalState.place.desc())
@@ -78,7 +96,7 @@ class AssemblyCreate(AssemblyBase):
 
 
 class AssemblyRead(AssemblyBase):
-    #idx: int
+    # idx: int
     name: str
     crystal_quantity: int
     current_crystals: list[Optional[str]]
@@ -132,7 +150,7 @@ class CrystalRead(CrystalBase):
 
 # ================= CrystalState =================
 class CrystalStateBase(RDTSDatabase):
-    #idx: int
+    # idx: int
     crystal_name: str
     assembly_name: str
     timestamp: str
@@ -147,6 +165,12 @@ class CrystalState(CrystalStateBase, table=True):
     assembly_name: str = Field(foreign_key="assemblies.name")
     timestamp: str = Field(sa_type=DateTime)
 
+    #testsuiteresults: list["TestSuiteResult"] = relationship("TestSuiteResult",
+    #                                                         secondary=crystals_states_testsuiteresults,
+    #                                                         back_populates="crystals")
+    testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="crystal_states",
+                                                             link_model=CrystalStateTestsuiteresult
+                                                             )
     assembly: Assembly = Relationship(back_populates="crystals")
     crystal: Crystal = Relationship(back_populates="crystal_states")
 
@@ -214,10 +238,10 @@ class TestSuiteRead(TestSuiteBase):
 
 # ================= TestSuiteResult =================
 class TestSuiteResultBase(RDTSDatabase):
-    #testsuite_name: str
-    #testsuite_version: str
+    # testsuite_name: str
+    # testsuite_version: str
     testsuite_idx: int
-    assembly_name: str
+    # crystal_name: str
     timestamp: str
 
 
@@ -227,26 +251,36 @@ class TestSuiteResultBase(RDTSDatabase):
 class TestSuiteResult(TestSuiteResultBase, table=True):
     __tablename__ = "testsuiteresults"
     idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
-    #testsuite_name: str = Field(foreign_key="testsuites.name")
-    #testsuite_version: str = Field(foreign_key="testsuites.version")
+    # testsuite_name: str = Field(foreign_key="testsuites.name")
+    # testsuite_version: str = Field(foreign_key="testsuites.version")
     testsuite_idx: int = Field(foreign_key="testsuites.idx")
-    assembly_name: str = Field(foreign_key="assemblies.name")
+    # assembly_name: str = Field(foreign_key="assemblies.name")
+    # crystal_name: str = Field(foreign_key="crystals.name")
     timestamp: str = Field(sa_type=DateTime)
+
     #    testsresults: list[TestResult] = Relationship(back_populates="testsuiteresult")
     testsuite: TestSuite = Relationship(back_populates="testsuiteresults")
-    assembly: Assembly = Relationship(back_populates="testsuiteresults")
+    # assembly: Assembly = Relationship(back_populates="testsuiteresults")
+    #crystals: list["CrystalState"] = relationship("CrystalState",
+    #                                              secondary=crystals_states_testsuiteresults,
+    #                                              back_populates="testsuiteresults")
+    crystal_states: list["CrystalState"] = Relationship(back_populates="testsuiteresults",
+                                                        link_model=CrystalStateTestsuiteresult
+                                                        )
 
     @property
     def result_path(self) -> str:
-        return f"{self.testsuite.results_path}/{self.assembly.name}-{self.timestamp}.json"
+        return f"{self.testsuite.results_path}/{self.testsuite_idx}-{self.timestamp}.json"
 
     @property
     def config_path(self) -> str:
-        return f"{self.testsuite.results_path}/config-{self.assembly.name}-{self.timestamp}.json"
+        return f"{self.testsuite.results_path}/config-{self.testsuite_idx}-{self.timestamp}.json"
 
 
 class TestSuiteResultCreate(TestSuiteResultBase):
     pass
+
+
 class TestSuiteResultInfo(TestSuiteResultBase):
     pass
 
