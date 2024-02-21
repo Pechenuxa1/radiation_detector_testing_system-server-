@@ -8,7 +8,7 @@ from rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
     CrystalCreate, CrystalStateCreate, CrystalStatus, CrystalState
 
 from rdtsserver.dependencies import engine
-from rdtsserver.routers.crystals import create_crystal
+from rdtsserver.routers.crystals import create_crystal, pull_out_this_crystal_from_some_assembly, pull_out_some_crystal_from_this_assembly
 from rdtsserver.routers.crystalstates import create_crystal_state
 
 router = APIRouter()
@@ -66,23 +66,3 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
     return db_assembly, status_code
 
 
-def pull_out_this_crystal_from_some_assembly(crystal_name, new_status):
-    with (Session(engine) as session):
-        crystal_state = session.exec(select(CrystalState)
-                                     .where(CrystalState.crystal_name == crystal_name)
-                                     .where(CrystalState.status == CrystalStatus.USED)
-                                     ).one_or_none()
-        if crystal_state:
-            crystal_state.status = new_status
-            session.commit()
-
-
-def pull_out_some_crystal_from_this_assembly(assembly_name, place, new_status):
-    with Session(engine) as session:
-        crystal_state = session.exec(select(CrystalState)
-                                     .where(CrystalState.assembly_name == assembly_name)
-                                     .where(CrystalState.place == place)
-                                     .order_by(CrystalState.timestamp.desc())).first()
-        if crystal_state:
-            crystal_state.status = new_status
-            session.commit()
