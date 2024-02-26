@@ -2,26 +2,28 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import Response, status, APIRouter
-from sqlalchemy import Integer
 from sqlmodel import Session, select
-from rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
-    CrystalCreate, CrystalStateCreate, CrystalStatus, CrystalState
-
-from rdtsserver.dependencies import engine
-from rdtsserver.routers.crystals import create_crystal, pull_out_this_crystal_from_some_assembly, pull_out_some_crystal_from_this_assembly
-from rdtsserver.routers.crystalstates import create_crystal_state
+from server.rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
+    CrystalCreate, CrystalStateCreate, CrystalStatus
+from server.rdtsserver.dependencies import engine
+from server.rdtsserver.routers.crystals import create_crystal, pull_out_this_crystal_from_some_assembly, \
+    pull_out_some_crystal_from_this_assembly
+from server.rdtsserver.routers.crystalstates import create_crystal_state
+from server.rdtsserver.utils.validator import validate_string, validate_AssemblyCreate
 
 router = APIRouter()
 
 
 @router.post("", status_code=207, response_model=str)
 def handle_create_assembly(assembly: AssemblyCreate, response: Response):
+    assembly = validate_AssemblyCreate(assembly=assembly)
     db_assembly, response.status_code = create_assembly(assembly)
     return db_assembly.name
 
 
 @router.get("/{name}", response_model=Optional[AssemblyRead])
 def handle_read_assembly(name: str):
+    name = validate_string(value=name, object_error="Assembly name")
     with Session(engine) as session:
         return session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()
 
@@ -47,22 +49,21 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
 
         for place, crystal_name in enumerate(crystals):
             if crystal_name:
-
-                db_crystal, crystal_status_code = create_crystal(CrystalCreate(name=crystal_name,
-                                                                               assembly_name=assembly.name,
-                                                                               place=place
-                                                                               )
-                                                                 )
+                db_crystal, crystal_status_code = create_crystal(CrystalCreate(
+                    name=crystal_name,
+                    assembly_name=assembly.name,
+                    place=place)
+                )
 
                 pull_out_this_crystal_from_some_assembly(crystal_name, CrystalStatus.UNUSED)
                 pull_out_some_crystal_from_this_assembly(db_assembly.name, place, CrystalStatus.UNUSED)
 
-                crystal_state = CrystalStateCreate(timestamp=str(timestamp),
-                                                   crystal_name=db_crystal.name,
-                                                   assembly_name=db_assembly.name,
-                                                   place=place,
-                                                   status=CrystalStatus.USED)
-                db_crystal_state, crystal_state_status_code = create_crystal_state(crystal_state)
+                create_crystal_state(CrystalStateCreate(
+                    timestamp=str(timestamp),
+                    crystal_name=db_crystal.name,
+                    assembly_name=db_assembly.name,
+                    place=place,
+                    status=CrystalStatus.USED)
+                )
+
     return db_assembly, status_code
-
-

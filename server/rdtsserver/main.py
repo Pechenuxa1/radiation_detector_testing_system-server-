@@ -2,9 +2,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends
-from rdtsserver.db.tables import RDTSDatabase
-from rdtsserver.dependencies import engine, get_session
-from rdtsserver.routers import assemblies, crystals, crystalstates, testsuites, testsuiteresults
+from server.rdtsserver.db.tables import RDTSDatabase
+from server.rdtsserver.dependencies import engine, get_session
+from server.rdtsserver.routers import assemblies, crystals, crystalstates, testsuites, testsuiteresults
 
 
 @asynccontextmanager

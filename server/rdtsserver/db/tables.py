@@ -1,19 +1,13 @@
 from datetime import datetime
-from pathlib import Path
-
-import pydantic
-from fastapi import File
-from pydantic import Json
-from sqlalchemy.orm import relationship
 from sqlmodel import select
 
 from sqlmodel import SQLModel, Session
-from typing import Optional, Dict
+from typing import Optional
 from enum import Enum, auto
 from sqlmodel import Field, Relationship
-from sqlalchemy import DateTime, JSON, Column, Table, ForeignKey, Integer
+from sqlalchemy import DateTime
 
-from rdtsserver.dependencies import engine
+from server.rdtsserver.dependencies import engine
 
 
 class RDTSDatabase(SQLModel):
@@ -26,7 +20,7 @@ class CrystalStatus(Enum):
     DESTROYED = auto()  # уничтожен - не используется никакой сборкой. assembly_id и place отсутствует
 
 
-#crystals_states_testsuiteresults = Table('crystal_states_testsuiteresults', RDTSDatabase.metadata,
+# crystals_states_testsuiteresults = Table('crystal_states_testsuiteresults', RDTSDatabase.metadata,
 #                                         Column('crystalstate_idx', Integer,
 #                                                ForeignKey('crystals_states.idx')
 #                                                ),
@@ -61,11 +55,12 @@ class Assembly(AssemblyBase, table=True):
             # crystal_count = session.query(select(CrystalState).where(CrystalState.assembly_name == self.name)).count()
             crystal_state = session.exec(select(CrystalState)
                                          .where(CrystalState.assembly_name == self.name)
+                                         .where(CrystalState.status == CrystalStatus.USED)
                                          .order_by(CrystalState.place.desc())
                                          ).first()
-            if crystal_state.place:
-                return crystal_state.place + 1
-        return 0
+            if crystal_state is None:
+                return 0
+            return crystal_state.place + 1
 
     @property
     def current_crystals(self) -> list[Optional[str]]:
@@ -92,6 +87,7 @@ class Assembly(AssemblyBase, table=True):
 
 
 class AssemblyCreate(AssemblyBase):
+    #name: str
     crystals: list[str]
 
 
@@ -165,7 +161,7 @@ class CrystalState(CrystalStateBase, table=True):
     assembly_name: str = Field(foreign_key="assemblies.name")
     timestamp: str = Field(sa_type=DateTime)
 
-    #testsuiteresults: list["TestSuiteResult"] = relationship("TestSuiteResult",
+    # testsuiteresults: list["TestSuiteResult"] = relationship("TestSuiteResult",
     #                                                         secondary=crystals_states_testsuiteresults,
     #                                                         back_populates="crystals")
     testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="crystal_states",
@@ -261,7 +257,7 @@ class TestSuiteResult(TestSuiteResultBase, table=True):
     #    testsresults: list[TestResult] = Relationship(back_populates="testsuiteresult")
     testsuite: TestSuite = Relationship(back_populates="testsuiteresults")
     # assembly: Assembly = Relationship(back_populates="testsuiteresults")
-    #crystals: list["CrystalState"] = relationship("CrystalState",
+    # crystals: list["CrystalState"] = relationship("CrystalState",
     #                                              secondary=crystals_states_testsuiteresults,
     #                                              back_populates="testsuiteresults")
     crystal_states: list["CrystalState"] = Relationship(back_populates="testsuiteresults",
@@ -270,11 +266,11 @@ class TestSuiteResult(TestSuiteResultBase, table=True):
 
     @property
     def result_path(self) -> str:
-        return f"{self.testsuite.results_path}/{self.testsuite_idx}-{self.timestamp}.json"
+        return f"{self.testsuite.results_path}/{str(self.testsuite_idx)}-{self.timestamp}.json"
 
     @property
     def config_path(self) -> str:
-        return f"{self.testsuite.results_path}/config-{self.testsuite_idx}-{self.timestamp}.json"
+        return f"{self.testsuite.results_path}/config-{str(self.testsuite_idx)}-{self.timestamp}.json"
 
 
 class TestSuiteResultCreate(TestSuiteResultBase):

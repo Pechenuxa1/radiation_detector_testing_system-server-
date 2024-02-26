@@ -1,16 +1,12 @@
 from datetime import datetime
 from typing import Optional
 from fastapi import Response, status, APIRouter, UploadFile
-from pydantic import Json
-from sqlalchemy import select, JSON, and_, func
+from sqlalchemy import select, and_, func
 from sqlmodel import Session, select
-from starlette.responses import FileResponse, JSONResponse
-from typing import Dict
+from starlette.responses import FileResponse
 
-from rdtsserver.db.tables import (TestSuiteResult, TestSuiteResultInfo, TestSuiteResultCreate,
-                                  TestSuiteResultBase,
-                                  TestSuite, CrystalState, CrystalStatus)
-from rdtsserver.dependencies import engine
+from server.rdtsserver.db.tables import (TestSuiteResult, TestSuiteResultInfo, TestSuiteResultCreate, CrystalState)
+from server.rdtsserver.dependencies import engine
 
 router = APIRouter()
 

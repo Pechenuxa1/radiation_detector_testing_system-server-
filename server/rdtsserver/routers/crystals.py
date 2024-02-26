@@ -7,21 +7,25 @@ from typing import Optional
 
 from fastapi import Response
 from sqlmodel import Session, select
-from rdtsserver.db.tables import CrystalCreate, Crystal, CrystalRead, CrystalStateCreate, CrystalStatus, CrystalState
+from server.rdtsserver.db.tables import CrystalCreate, Crystal, CrystalRead, CrystalStateCreate, CrystalStatus, CrystalState
 
-from rdtsserver.dependencies import engine
+from server.rdtsserver.utils.validator import validate_CrystalCreate, validate_string
+
+from server.rdtsserver.dependencies import engine
 
 router = APIRouter()
 
 
 @router.post("", response_model=str)
 def handle_create_crystal(crystal: CrystalCreate, response: Response) -> str:
+    crystal = validate_CrystalCreate(crystal)
     db_crystal, response.status_code = create_crystal(crystal)
     if response.status_code == status.HTTP_207_MULTI_STATUS:
         pull_out_this_crystal_from_some_assembly(crystal.name, CrystalStatus.UNUSED)
         pull_out_some_crystal_from_this_assembly(crystal.assembly_name, crystal.place, CrystalStatus.UNUSED)
     else:
         # TODO: сделать проверку полей assembly_name и place на null
+        # TODO: crystalState создается всегда, убрать if-else
         db_crystal_state, status_code = create_crystal_state(CrystalStateCreate(
                                                                 crystal_name=crystal.name,
                                                                 assembly_name=crystal.assembly_name,
@@ -34,6 +38,7 @@ def handle_create_crystal(crystal: CrystalCreate, response: Response) -> str:
 
 @router.get("/{name}", response_model=Optional[CrystalRead])
 def handle_read_crystal(name: str) -> Crystal:
+    name = validate_string(value=name, object_error="Crystal name")
     with Session(engine) as session:
         return session.exec(select(Crystal).where(Crystal.name == name)).one_or_none()
 

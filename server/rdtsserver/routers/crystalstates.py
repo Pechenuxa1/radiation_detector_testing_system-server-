@@ -2,8 +2,8 @@ from typing import Optional
 
 from fastapi import status, APIRouter
 from sqlmodel import Session, select
-from rdtsserver.db.tables import CrystalStateCreate, CrystalState, CrystalStateRead
-from rdtsserver.dependencies import engine
+from server.rdtsserver.db.tables import CrystalStateCreate, CrystalState, CrystalStateRead
+from server.rdtsserver.dependencies import engine
 
 router = APIRouter()
 

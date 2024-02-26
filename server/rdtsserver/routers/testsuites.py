@@ -5,10 +5,12 @@ from fastapi import Response, status, APIRouter, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlmodel import Session, select
-from rdtsserver.db.tables import TestSuite
-from rdtsserver.dependencies import engine
+from server.rdtsserver.db.tables import TestSuite
+from server.rdtsserver.dependencies import engine
 
-from rdtsserver.db.tables import TestSuiteRead
+from server.rdtsserver.db.tables import TestSuiteRead
+
+from server.rdtsserver.utils.validator import validate_string
 
 router = APIRouter()
 
@@ -24,6 +26,7 @@ def handle_create_testsuite(name: str,
 
 @router.get("/{name}", response_model=Optional[TestSuiteRead])
 def handle_read_testsuite(name: str):
+    name = validate_string(value=name, object_error="Testsuite name")
     with (Session(engine) as session):
         return session.exec(select(TestSuite)
                                 .where(TestSuite.name == name)
@@ -32,6 +35,7 @@ def handle_read_testsuite(name: str):
 
 @router.get("/download/{name}")
 def handle_download_testsuite(name: str):
+    name = validate_string(value=name, object_error="Testsuite name")
     with (Session(engine) as session):
         testsuite: TestSuite = session.exec(select(TestSuite)
                                                 .where(TestSuite.name == name)
