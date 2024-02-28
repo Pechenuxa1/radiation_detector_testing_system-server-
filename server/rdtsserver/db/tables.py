@@ -1,4 +1,6 @@
 from datetime import datetime
+
+from fastapi import UploadFile
 from sqlmodel import select
 
 from sqlmodel import SQLModel, Session
@@ -87,7 +89,7 @@ class Assembly(AssemblyBase, table=True):
 
 
 class AssemblyCreate(AssemblyBase):
-    #name: str
+    # name: str
     crystals: list[str]
 
 

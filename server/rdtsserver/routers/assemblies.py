@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import Response, status, APIRouter
+from fastapi import Response, status, APIRouter, HTTPException
 from sqlmodel import Session, select
 from server.rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
     CrystalCreate, CrystalStateCreate, CrystalStatus
@@ -25,7 +25,10 @@ def handle_create_assembly(assembly: AssemblyCreate, response: Response):
 def handle_read_assembly(name: str):
     name = validate_string(value=name, object_error="Assembly name")
     with Session(engine) as session:
-        return session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()
+        assembly = session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()
+        if assembly is None:
+            raise HTTPException(status_code=400, detail=f"Assembly {name} not found!")
+        return assembly
 
 
 @router.get("", response_model=list[AssemblyRead])
@@ -55,15 +58,15 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
                     place=place)
                 )
 
-                pull_out_this_crystal_from_some_assembly(crystal_name, CrystalStatus.UNUSED)
-                pull_out_some_crystal_from_this_assembly(db_assembly.name, place, CrystalStatus.UNUSED)
+                #pull_out_this_crystal_from_some_assembly(crystal_name, CrystalStatus.UNUSED)
+                #pull_out_some_crystal_from_this_assembly(crystal_name, db_assembly.name, place, CrystalStatus.UNUSED)
 
-                create_crystal_state(CrystalStateCreate(
-                    timestamp=str(timestamp),
-                    crystal_name=db_crystal.name,
-                    assembly_name=db_assembly.name,
-                    place=place,
-                    status=CrystalStatus.USED)
-                )
+                #create_crystal_state(CrystalStateCreate(
+                #    timestamp=str(timestamp),
+                #    crystal_name=db_crystal.name,
+                #    assembly_name=db_assembly.name,
+                #    place=place,
+                #    status=CrystalStatus.USED)
+                #)
 
     return db_assembly, status_code

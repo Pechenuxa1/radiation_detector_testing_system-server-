@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Optional
-from fastapi import Response, status, APIRouter, UploadFile
+from fastapi import Response, status, APIRouter, UploadFile, HTTPException
 from sqlalchemy import select, and_, func
 from sqlmodel import Session, select
 from starlette.responses import FileResponse
 
 from server.rdtsserver.db.tables import (TestSuiteResult, TestSuiteResultInfo, TestSuiteResultCreate, CrystalState)
 from server.rdtsserver.dependencies import engine
+from server.rdtsserver.utils.validator import validate_positive_number, validate_string
 
 router = APIRouter()
 
@@ -17,6 +18,8 @@ def handle_create_testsuiteresult(testsuite_idx: int,
                                   config: UploadFile,
                                   result: UploadFile,
                                   response: Response):
+    validate_positive_number(testsuite_idx, "Test suite id")
+    assembly_name = validate_string(assembly_name, "Assembly name")
     db_testsuiteresult, response.status_code = create_testsuiteresult(testsuite_idx,
                                                                       assembly_name,
                                                                       config,
@@ -27,16 +30,22 @@ def handle_create_testsuiteresult(testsuite_idx: int,
 
 @router.get("/{idx}", response_model=Optional[TestSuiteResultInfo])
 def handle_read_testsuiteresult_config(idx: int):
+    validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
+        if tsr is None:
+            raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
         tsr.timestamp = str(tsr.timestamp)
         return tsr
 
 
 @router.get("/{idx}/config")
 def handle_read_testsuiteresult(idx: int):
+    validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
+        if db_testsuiteresult is None:
+            raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
         return FileResponse(path=db_testsuiteresult.config_path,
                             filename=f"config-{db_testsuiteresult.assembly.name}-{db_testsuiteresult.timestamp}",
                             media_type='application/json')
@@ -44,8 +53,12 @@ def handle_read_testsuiteresult(idx: int):
 
 @router.get("{idx}/result")
 def handle_read_testsuiteresult(idx: int):
+    validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
+        if db_testsuiteresult is None:
+            raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
+
         return FileResponse(path=db_testsuiteresult.result_path,
                             filename=f"{db_testsuiteresult.assembly.name}-{db_testsuiteresult.timestamp}",
                             media_type='application/json')
@@ -80,6 +93,9 @@ def create_testsuiteresult(testsuite_idx: int,
         )
 
         crystals = query.all()
+
+        if not crystals:
+            raise HTTPException(status_code=400, detail=f"Crystals in assembly {assembly_name} not found!")
 
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
