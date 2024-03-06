@@ -121,6 +121,7 @@ celerybeat.pid
 
 # Environments
 .env
+./rdtsserver/*.env
 .venv
 env/
 venv/
