@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import Optional
-from fastapi import Response, status, APIRouter, UploadFile, HTTPException
+from fastapi import Response, status, APIRouter, UploadFile, HTTPException, Depends
 from sqlalchemy import select, and_, func
 from sqlmodel import Session, select
 from starlette.responses import FileResponse
 
 from server.rdtsserver.db.tables import (TestSuiteResult, TestSuiteResultInfo, TestSuiteResultCreate, CrystalState)
 from server.rdtsserver.dependencies import engine
+from server.rdtsserver.utils.security import get_api_key
 from server.rdtsserver.utils.validator import validate_positive_number, validate_string
 
 router = APIRouter()
@@ -17,7 +18,8 @@ def handle_create_testsuiteresult(testsuite_idx: int,
                                   assembly_name: str,
                                   config: UploadFile,
                                   result: UploadFile,
-                                  response: Response):
+                                  response: Response,
+                                  api_key: str = Depends(get_api_key)):
     validate_positive_number(testsuite_idx, "Test suite id")
     assembly_name = validate_string(assembly_name, "Assembly name")
     db_testsuiteresult, response.status_code = create_testsuiteresult(testsuite_idx,
@@ -29,7 +31,7 @@ def handle_create_testsuiteresult(testsuite_idx: int,
 
 
 @router.get("/{idx}", response_model=Optional[TestSuiteResultInfo])
-def handle_read_testsuiteresult_config(idx: int):
+def handle_read_testsuiteresult_config(idx: int, api_key: str = Depends(get_api_key)):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -40,7 +42,7 @@ def handle_read_testsuiteresult_config(idx: int):
 
 
 @router.get("/{idx}/config")
-def handle_read_testsuiteresult(idx: int):
+def handle_read_testsuiteresult(idx: int, api_key: str = Depends(get_api_key)):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -52,7 +54,7 @@ def handle_read_testsuiteresult(idx: int):
 
 
 @router.get("{idx}/result")
-def handle_read_testsuiteresult(idx: int):
+def handle_read_testsuiteresult(idx: int, api_key: str = Depends(get_api_key)):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -65,7 +67,7 @@ def handle_read_testsuiteresult(idx: int):
 
 
 @router.get("", response_model=list[TestSuiteResultInfo])
-def handle_read_all_testsuiteresults():
+def handle_read_all_testsuiteresults(api_key: str = Depends(get_api_key)):
     with Session(engine) as session:
         return session.exec(select(TestSuiteResult)).all()
 
