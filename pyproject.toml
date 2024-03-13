@@ -6,7 +6,8 @@ authors = ["Pechenuxa1 <v.tatarintsev@g.nsu.ru>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.10"
+passlib = "^1.7.4"
 
 
 [build-system]

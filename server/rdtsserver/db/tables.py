@@ -282,6 +282,7 @@ class TestSuiteResultCreate(TestSuiteResultBase):
 class TestSuiteResultInfo(TestSuiteResultBase):
     pass
 
+
 # Порядок сохранения результатов тестов (Клиент):
 # Запрос на обновление/создание сборки (+ получаем id)
 # Запрос на обновление/создание набора тестов (+ получаем id)
@@ -291,3 +292,10 @@ class TestSuiteResultInfo(TestSuiteResultBase):
 # Что получаем? название, zip c python модулем
 
 # Порядок сохранения результатов набора тестов (Сервер):
+
+
+class User(RDTSDatabase, table=True):
+    __tablename__ = "users"
+    idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    login: str = Field()
+    hashed_password: str = Field()

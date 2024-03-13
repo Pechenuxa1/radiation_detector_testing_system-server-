@@ -12,13 +12,12 @@ from server.rdtsserver.db.tables import CrystalCreate, Crystal, CrystalRead, Cry
 from server.rdtsserver.utils.validator import validate_CrystalCreate, validate_string
 
 from server.rdtsserver.dependencies import engine
-from ..utils.security import get_api_key
 
 router = APIRouter()
 
 
 @router.post("", response_model=str)
-def handle_create_crystal(crystal: CrystalCreate, response: Response, api_key: str = Depends(get_api_key)) -> str:
+def handle_create_crystal(crystal: CrystalCreate, response: Response) -> str:
     crystal = validate_CrystalCreate(crystal)
     db_crystal, response.status_code = create_crystal(crystal)
     #if response.status_code == status.HTTP_207_MULTI_STATUS:
@@ -38,7 +37,7 @@ def handle_create_crystal(crystal: CrystalCreate, response: Response, api_key: s
 
 
 @router.get("/{name}", response_model=Optional[CrystalRead])
-def handle_read_crystal(name: str, api_key: str = Depends(get_api_key)) -> Crystal:
+def handle_read_crystal(name: str) -> Crystal:
     name = validate_string(value=name, object_error="Crystal name")
     with Session(engine) as session:
         crystal = session.exec(select(Crystal).where(Crystal.name == name)).one_or_none()
@@ -48,7 +47,7 @@ def handle_read_crystal(name: str, api_key: str = Depends(get_api_key)) -> Cryst
 
 
 @router.get("", response_model=list[CrystalRead])
-def handle_read_all_crystals(api_key: str = Depends(get_api_key)):
+def handle_read_all_crystals():
     with Session(engine) as session:
         return session.exec(select(Crystal)).all()
 

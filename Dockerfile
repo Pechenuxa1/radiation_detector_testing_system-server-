@@ -4,6 +4,8 @@ COPY /server /server
 #WORKDIR /server
 
 RUN pip3 install ./server
-#RUN pip install --upgrade pydantic
-#RUN pip install --upgrade sqlmodel
+RUN pip install --upgrade pydantic
+RUN pip install --upgrade sqlmodel
+RUN pip install --upgrade "passlib[bcrypt]"
+RUN pip install --upgrade "python-jose[cryptography]"
 CMD ["python3", "-m", "uvicorn", "server.rdtsserver.main:rdts_app", "--host", "0.0.0.0"]

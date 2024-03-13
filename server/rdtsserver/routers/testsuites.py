@@ -9,7 +9,6 @@ from server.rdtsserver.db.tables import TestSuite
 from server.rdtsserver.dependencies import engine
 
 from server.rdtsserver.db.tables import TestSuiteRead
-from server.rdtsserver.utils.security import get_api_key
 
 from server.rdtsserver.utils.validator import validate_string
 
@@ -20,8 +19,7 @@ router = APIRouter()
 def handle_create_testsuite(name: str,
                             version: str,
                             zip_file: UploadFile,
-                            response: Response,
-                            api_key: str = Depends(get_api_key)):
+                            response: Response):
     name = validate_string(name, "Test suite name")
     version = validate_string(version, "Test suite version")
     db_testsuite, response.status_code = create_testsuite(name, version, zip_file)
@@ -29,7 +27,7 @@ def handle_create_testsuite(name: str,
 
 
 @router.get("/{name}", response_model=Optional[TestSuiteRead])
-def handle_read_testsuite(name: str, api_key: str = Depends(get_api_key)):
+def handle_read_testsuite(name: str):
     name = validate_string(value=name, object_error="Testsuite name")
     with (Session(engine) as session):
         testsuite = session.exec(select(TestSuite)
@@ -40,7 +38,7 @@ def handle_read_testsuite(name: str, api_key: str = Depends(get_api_key)):
 
 
 @router.get("/download/{name}")
-def handle_download_testsuite(name: str, api_key: str = Depends(get_api_key)):
+def handle_download_testsuite(name: str):
     name = validate_string(value=name, object_error="Testsuite name")
     with (Session(engine) as session):
         testsuite: TestSuite = session.exec(select(TestSuite)
@@ -53,7 +51,7 @@ def handle_download_testsuite(name: str, api_key: str = Depends(get_api_key)):
 
 
 @router.get("", response_model=list[TestSuiteRead])
-def handle_read_all_testsuites(api_key: str = Depends(get_api_key)):
+def handle_read_all_testsuites():
     with Session(engine) as session:
         return session.exec(select(TestSuite)).all()
 
