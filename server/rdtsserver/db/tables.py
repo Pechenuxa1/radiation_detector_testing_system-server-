@@ -294,8 +294,27 @@ class TestSuiteResultInfo(TestSuiteResultBase):
 # Порядок сохранения результатов набора тестов (Сервер):
 
 
+class UserRegister(RDTSDatabase):
+    login: str
+    password: str
+
+
 class User(RDTSDatabase, table=True):
     __tablename__ = "users"
     idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     login: str = Field()
     hashed_password: str = Field()
+    role: str = Field()
+    access_token: str = Field(default=None)
+    refresh_token: str = Field(default=None)
+
+
+class Role(RDTSDatabase, table=True):
+    __tablename__ = "roles"
+    idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    name: str = Field()
+
+
+class Token(RDTSDatabase):
+    access_token: str
+    refresh_token: str

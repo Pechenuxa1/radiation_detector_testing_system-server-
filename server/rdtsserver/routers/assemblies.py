@@ -1,14 +1,12 @@
 from datetime import datetime
 from typing import Optional
 
-from fastapi import Response, status, APIRouter, HTTPException, Security, Depends
+from fastapi import Response, status, APIRouter, HTTPException
 from sqlmodel import Session, select
 from server.rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
-    CrystalCreate, CrystalStateCreate, CrystalStatus
+    CrystalCreate
 from server.rdtsserver.dependencies import engine
-from server.rdtsserver.routers.crystals import create_crystal, pull_out_this_crystal_from_some_assembly, \
-    pull_out_some_crystal_from_this_assembly
-from server.rdtsserver.routers.crystalstates import create_crystal_state
+from server.rdtsserver.routers.crystals import create_crystal
 from server.rdtsserver.utils.validator import validate_string, validate_AssemblyCreate
 
 router = APIRouter()
