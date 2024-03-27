@@ -12,7 +12,7 @@ from server.rdtsserver.utils.validator import validate_positive_number, validate
 router = APIRouter()
 
 
-@router.post("", status_code=207, response_model=Optional[TestSuiteResultCreate])
+@router.post("", status_code=207, response_model=int)
 def handle_create_testsuiteresult(testsuite_idx: int,
                                   assembly_name: str,
                                   config: UploadFile,
@@ -24,8 +24,8 @@ def handle_create_testsuiteresult(testsuite_idx: int,
                                                                       assembly_name,
                                                                       config,
                                                                       result)
-    tsr = TestSuiteResultCreate(testsuite_idx=testsuite_idx, timestamp=str(db_testsuiteresult.timestamp))
-    return tsr
+    #tsr = TestSuiteResultCreate(testsuite_idx=testsuite_idx, timestamp=str(db_testsuiteresult.timestamp))
+    return db_testsuiteresult.idx
 
 
 @router.get("/{idx}", response_model=Optional[TestSuiteResultInfo])
@@ -47,7 +47,7 @@ def handle_read_testsuiteresult(idx: int):
         if db_testsuiteresult is None:
             raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
         return FileResponse(path=db_testsuiteresult.config_path,
-                            filename=f"config-{db_testsuiteresult.assembly.name}-{db_testsuiteresult.timestamp}",
+                            filename=f"config-{db_testsuiteresult.idx}-{db_testsuiteresult.timestamp}",
                             media_type='application/json')
 
 
@@ -60,14 +60,17 @@ def handle_read_testsuiteresult(idx: int):
             raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
 
         return FileResponse(path=db_testsuiteresult.result_path,
-                            filename=f"{db_testsuiteresult.assembly.name}-{db_testsuiteresult.timestamp}",
+                            filename=f"{db_testsuiteresult.idx}-{db_testsuiteresult.timestamp}",
                             media_type='application/json')
 
 
 @router.get("", response_model=list[TestSuiteResultInfo])
 def handle_read_all_testsuiteresults():
     with Session(engine) as session:
-        return session.exec(select(TestSuiteResult)).all()
+        testsuiteresults = session.exec(select(TestSuiteResult)).all()
+        for tsr in testsuiteresults:
+            tsr.timestamp = str(tsr.timestamp)
+        return testsuiteresults
 
 
 def save_bytes_to_file(file_path, content: bytes):

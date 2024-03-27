@@ -31,10 +31,11 @@ def handle_read_testsuite(name: str):
     name = validate_string(value=name, object_error="Testsuite name")
     with (Session(engine) as session):
         testsuite = session.exec(select(TestSuite)
-                                .where(TestSuite.name == name)
-                                .order_by(TestSuite.version.desc())).first()
+                                 .where(TestSuite.name == name)
+                                 .order_by(TestSuite.version.desc())).first()
         if testsuite is None:
             raise HTTPException(status_code=400, detail=f"Test suite {name} not found!")
+        return testsuite
 
 
 @router.get("/download/{name}")
@@ -42,8 +43,8 @@ def handle_download_testsuite(name: str):
     name = validate_string(value=name, object_error="Testsuite name")
     with (Session(engine) as session):
         testsuite: TestSuite = session.exec(select(TestSuite)
-                                                .where(TestSuite.name == name)
-                                                .order_by(TestSuite.version.desc())).first()
+                                            .where(TestSuite.name == name)
+                                            .order_by(TestSuite.version.desc())).first()
         if testsuite:
             return FileResponse(path=testsuite.path, filename=f"{testsuite.name}", media_type='application/zip')
 

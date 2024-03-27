@@ -191,6 +191,8 @@ class TestSuiteBase(RDTSDatabase):
 class TestSuite(TestSuiteBase, table=True):
     __tablename__ = "testsuites"
     idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    name: str = Field()
+    version: str = Field()
     timestamp: str
 
     testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="testsuite")

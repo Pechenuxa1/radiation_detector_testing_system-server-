@@ -42,7 +42,8 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
         db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name)).one_or_none()
         if db_assembly is None:
             status_code = status.HTTP_201_CREATED
-            db_assembly = Assembly.from_orm(assembly)
+            db_assembly = Assembly(name=assembly.name)
+            #db_assembly = Assembly.from_orm(assembly)
             session.add(db_assembly)
             session.commit()
             session.refresh(db_assembly)
