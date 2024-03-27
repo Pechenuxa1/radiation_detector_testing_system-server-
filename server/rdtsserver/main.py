@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     RDTSDatabase.metadata.create_all(engine)
     yield
 
-main_app = FastAPI(title="RDTS Server", lifespan=lifespan, root_path="/api")
+main_app = FastAPI(title="RDTS Server", lifespan=lifespan)
 
 ACTUAL_API_VERSION = "/v1.0.2"
 
