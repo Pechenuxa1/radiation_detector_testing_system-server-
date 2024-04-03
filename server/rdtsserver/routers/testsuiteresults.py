@@ -24,7 +24,7 @@ def handle_create_testsuiteresult(testsuite_idx: int,
                                                                       assembly_name,
                                                                       config,
                                                                       result)
-    #tsr = TestSuiteResultCreate(testsuite_idx=testsuite_idx, timestamp=str(db_testsuiteresult.timestamp))
+    # tsr = TestSuiteResultCreate(testsuite_idx=testsuite_idx, timestamp=str(db_testsuiteresult.timestamp))
     return db_testsuiteresult.idx
 
 
@@ -35,8 +35,13 @@ def handle_read_testsuiteresult(idx: int):
         tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
         if tsr is None:
             raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
-        tsr.timestamp = str(tsr.timestamp)
-        return tsr
+        tsr_info = TestSuiteResultInfo(
+            idx=tsr.idx,
+            assembly_name=tsr.crystal_states[0].assembly_name,
+            timestamp=str(tsr.timestamp),
+            testsuite_idx=tsr.testsuite_idx
+        )
+        return tsr_info
 
 
 @router.get("/{idx}/config")
