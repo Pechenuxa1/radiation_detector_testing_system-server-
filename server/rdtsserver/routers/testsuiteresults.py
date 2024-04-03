@@ -29,7 +29,7 @@ def handle_create_testsuiteresult(testsuite_idx: int,
 
 
 @router.get("/{idx}", response_model=Optional[TestSuiteResultInfo])
-def handle_read_testsuiteresult_config(idx: int):
+def handle_read_testsuiteresult(idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -40,7 +40,7 @@ def handle_read_testsuiteresult_config(idx: int):
 
 
 @router.get("/{idx}/config")
-def handle_read_testsuiteresult(idx: int):
+def handle_read_testsuiteresult_config(idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -52,7 +52,7 @@ def handle_read_testsuiteresult(idx: int):
 
 
 @router.get("{idx}/result")
-def handle_read_testsuiteresult(idx: int):
+def handle_read_testsuiteresult_result(idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -68,9 +68,18 @@ def handle_read_testsuiteresult(idx: int):
 def handle_read_all_testsuiteresults():
     with Session(engine) as session:
         testsuiteresults = session.exec(select(TestSuiteResult)).all()
+        tsr_info = []
         for tsr in testsuiteresults:
-            tsr.timestamp = str(tsr.timestamp)
-        return testsuiteresults
+            tsr_info.append(
+                TestSuiteResultInfo(
+                    idx=tsr.idx,
+                    assembly_name=tsr.crystal_states[0].assembly_name,
+                    timestamp=str(tsr.timestamp),
+                    testsuite_idx=tsr.testsuite_idx
+                )
+            )
+        #    tsr.timestamp = str(tsr.timestamp)
+        return tsr_info
 
 
 def save_bytes_to_file(file_path, content: bytes):

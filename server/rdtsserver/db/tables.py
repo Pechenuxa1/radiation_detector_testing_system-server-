@@ -282,7 +282,8 @@ class TestSuiteResultCreate(TestSuiteResultBase):
 
 
 class TestSuiteResultInfo(TestSuiteResultBase):
-    pass
+    idx: int
+    assembly_name: str
 
 
 # Порядок сохранения результатов тестов (Клиент):
