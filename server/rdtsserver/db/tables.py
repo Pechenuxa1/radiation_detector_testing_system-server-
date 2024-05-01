@@ -48,6 +48,7 @@ class Assembly(AssemblyBase, table=True):
     # idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     name: str = Field(None, primary_key=True)
     crystals: list["CrystalState"] = Relationship(back_populates="assembly")
+    timestamp: datetime
 
     # testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="assembly")
 
@@ -98,6 +99,7 @@ class AssemblyRead(AssemblyBase):
     name: str
     crystal_quantity: int
     current_crystals: list[Optional[str]]
+    timestamp: str
 
 
 # ================= Crystal =================
@@ -193,7 +195,7 @@ class TestSuite(TestSuiteBase, table=True):
     idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     name: str = Field()
     version: str = Field()
-    timestamp: str
+    timestamp: datetime
 
     testsuiteresults: list["TestSuiteResult"] = Relationship(back_populates="testsuite")
 
@@ -214,6 +216,7 @@ class TestSuite(TestSuiteBase, table=True):
 
 class TestSuiteRead(TestSuiteBase):
     idx: int
+    timestamp: str
 
 
 # ================= TestResult =================
@@ -256,7 +259,7 @@ class TestSuiteResult(TestSuiteResultBase, table=True):
     testsuite_idx: int = Field(foreign_key="testsuites.idx")
     # assembly_name: str = Field(foreign_key="assemblies.name")
     # crystal_name: str = Field(foreign_key="crystals.name")
-    timestamp: str = Field(sa_type=DateTime)
+    timestamp: datetime
 
     #    testsresults: list[TestResult] = Relationship(back_populates="testsuiteresult")
     testsuite: TestSuite = Relationship(back_populates="testsuiteresults")
@@ -270,11 +273,11 @@ class TestSuiteResult(TestSuiteResultBase, table=True):
 
     @property
     def result_path(self) -> str:
-        return f"{self.testsuite.results_path}/{str(self.testsuite_idx)}-{self.timestamp}.json"
+        return f"{self.testsuite.results_path}/{str(self.testsuite_idx)}-{str(self.idx)}.json"
 
     @property
     def config_path(self) -> str:
-        return f"{self.testsuite.results_path}/config-{str(self.testsuite_idx)}-{self.timestamp}.json"
+        return f"{self.testsuite.results_path}/config-{str(self.testsuite_idx)}-{str(self.idx)}.json"
 
 
 class TestSuiteResultCreate(TestSuiteResultBase):
@@ -284,6 +287,7 @@ class TestSuiteResultCreate(TestSuiteResultBase):
 class TestSuiteResultInfo(TestSuiteResultBase):
     idx: int
     assembly_name: str
+    timestamp: str
 
 
 # Порядок сохранения результатов тестов (Клиент):
@@ -321,3 +325,8 @@ class Role(RDTSDatabase, table=True):
 class Token(RDTSDatabase):
     access_token: str
     refresh_token: str
+
+
+class Period(RDTSDatabase):
+    start_date: str
+    end_date: str

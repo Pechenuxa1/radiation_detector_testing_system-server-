@@ -50,6 +50,7 @@ main_app.mount("/v1.0.2", app_1_0_2)
 def actual_api():
     return {"version": f"Actual server version is {ACTUAL_API_VERSION}"}
 
+
 @main_app.get("/health")
 def health() -> str:
     return "Server is running!"

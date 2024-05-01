@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import Response, status, APIRouter, HTTPException
 from sqlmodel import Session, select
 from server.rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
-    CrystalCreate
+    CrystalCreate, Period
 from server.rdtsserver.dependencies import engine
 from server.rdtsserver.routers.crystals import create_crystal
 from server.rdtsserver.utils.validator import validate_string, validate_AssemblyCreate
@@ -26,23 +26,53 @@ def handle_read_assembly(name: str):
         assembly = session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()
         if assembly is None:
             raise HTTPException(status_code=400, detail=f"Assembly {name} not found!")
-        return assembly
+        return AssemblyRead(
+            name=assembly.name,
+            crystal_quantity=assembly.crystal_quantity,
+            current_crystals=assembly.current_crystals,
+            timestamp=assembly.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        )
 
 
 @router.get("", response_model=list[AssemblyRead])
 def handle_read_all_assemblies():
     with Session(engine) as session:
-        return session.exec(select(Assembly)).all()
+        assemblies = session.exec(select(Assembly)).all()
+        assemblies_read = []
+        for assembly in assemblies:
+            assemblies_read.append(AssemblyRead(
+                name=assembly.name,
+                crystal_quantity=assembly.crystal_quantity,
+                current_crystals=assembly.current_crystals,
+                timestamp=assembly.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            ))
+        return assemblies_read
+
+
+@router.get("/{start_date}/{end_date})", response_model=list[AssemblyRead])
+def handle_read_all_assemblies_by_the_time(start_date: str, end_date: str):
+    with Session(engine) as session:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        end_date = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+        assemblies = session.exec(select(Assembly).where(Assembly.timestamp.between(start_date, end_date)))
+        assemblies_read = []
+        for assembly in assemblies:
+            assemblies_read.append(AssemblyRead(
+                name=assembly.name,
+                crystal_quantity=assembly.crystal_quantity,
+                current_crystals=assembly.current_crystals,
+                timestamp=assembly.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+            ))
+        return assemblies_read
 
 
 def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
     with Session(engine) as session:
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         status_code = status.HTTP_207_MULTI_STATUS
         db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name)).one_or_none()
         if db_assembly is None:
             status_code = status.HTTP_201_CREATED
-            db_assembly = Assembly(name=assembly.name)
+            db_assembly = Assembly(name=assembly.name, timestamp=datetime.now())
             #db_assembly = Assembly.from_orm(assembly)
             session.add(db_assembly)
             session.commit()

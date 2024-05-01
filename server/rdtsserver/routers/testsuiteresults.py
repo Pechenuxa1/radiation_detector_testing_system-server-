@@ -38,7 +38,7 @@ def handle_read_testsuiteresult(idx: int):
         tsr_info = TestSuiteResultInfo(
             idx=tsr.idx,
             assembly_name=tsr.crystal_states[0].assembly_name,
-            timestamp=str(tsr.timestamp),
+            timestamp=tsr.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
             testsuite_idx=tsr.testsuite_idx
         )
         return tsr_info
@@ -79,7 +79,27 @@ def handle_read_all_testsuiteresults():
                 TestSuiteResultInfo(
                     idx=tsr.idx,
                     assembly_name=tsr.crystal_states[0].assembly_name,
-                    timestamp=str(tsr.timestamp),
+                    timestamp=tsr.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                    testsuite_idx=tsr.testsuite_idx
+                )
+            )
+        #    tsr.timestamp = str(tsr.timestamp)
+        return tsr_info
+
+
+@router.get("/{start_date}/{end_date}", response_model=list[TestSuiteResultInfo])
+def handle_read_all_testsuiteresults(start_date: str, end_date: str):
+    with Session(engine) as session:
+        start_date = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+        end_date = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+        testsuiteresults = session.exec(select(TestSuiteResult).where(TestSuiteResult.timestamp.between(start_date, end_date)))
+        tsr_info = []
+        for tsr in testsuiteresults:
+            tsr_info.append(
+                TestSuiteResultInfo(
+                    idx=tsr.idx,
+                    assembly_name=tsr.crystal_states[0].assembly_name,
+                    timestamp=tsr.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
                     testsuite_idx=tsr.testsuite_idx
                 )
             )
@@ -114,11 +134,9 @@ def create_testsuiteresult(testsuite_idx: int,
         if not crystals:
             raise HTTPException(status_code=400, detail=f"Crystals in assembly {assembly_name} not found!")
 
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
         db_testsuiteresult = TestSuiteResult(testsuite_idx=testsuite_idx,
                                              crystal_states=crystals,
-                                             timestamp=str(timestamp)
+                                             timestamp=datetime.now()
                                              )
         session.add(db_testsuiteresult)
         session.commit()
