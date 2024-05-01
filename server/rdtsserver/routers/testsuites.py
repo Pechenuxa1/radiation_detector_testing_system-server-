@@ -72,7 +72,7 @@ def handle_read_all_testsuites():
 
 
 @router.get("/{start_date}/{end_date}", response_model=list[TestSuiteRead])
-def handle_read_all_testsuites(start_date: str, end_date: str):
+def handle_read_all_testsuites_during_the_time(start_date: str, end_date: str):
     with Session(engine) as session:
         start_date = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
         end_date = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")

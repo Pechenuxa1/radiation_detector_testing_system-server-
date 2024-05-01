@@ -50,7 +50,7 @@ def handle_read_all_assemblies():
 
 
 @router.get("/{start_date}/{end_date})", response_model=list[AssemblyRead])
-def handle_read_all_assemblies_by_the_time(start_date: str, end_date: str):
+def handle_read_all_assemblies_during_the_time(start_date: str, end_date: str):
     with Session(engine) as session:
         start_date = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
         end_date = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
