@@ -44,6 +44,18 @@ def handle_read_testsuiteresult(idx: int):
         return tsr_info
 
 
+@router.delete("/{idx}")
+def handle_delete_testsuiteresult(idx:int):
+    validate_positive_number(idx, "Test suite results id")
+    with Session(engine) as session:
+        tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
+        if tsr is None:
+            raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
+
+        session.delete(tsr)
+        session.commit()
+
+
 @router.get("/{idx}/config")
 def handle_read_testsuiteresult_config(idx: int):
     validate_positive_number(idx, "Test suite results id")

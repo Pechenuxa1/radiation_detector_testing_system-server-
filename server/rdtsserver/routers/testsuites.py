@@ -43,6 +43,28 @@ def handle_read_testsuite(name: str):
         )
 
 
+@router.delete("/{name}/{version}")
+def handle_delete_testsuite(name: str, version: str):
+    name = validate_string(value=name, object_error="Testsuite name")
+    with Session(engine) as session:
+        testsuite: TestSuite = session.exec(select(TestSuite)
+                                 .where(TestSuite.name == name)
+                                 .where(TestSuite.version == version)).one_or_none()
+
+        if testsuite is None:
+            raise HTTPException(status_code=400, detail=f"Test suite {name} not found!")
+
+        testsuites_other = session.exec(select(TestSuite)
+                                 .where(TestSuite.name == name)
+                                 .where(TestSuite.version != version)).all()
+
+        if len(testsuites_other) == 0:
+            delete_all_testsuiteresults(testsuite)
+
+        session.delete(testsuite)
+        session.commit()
+
+
 @router.get("/download/{name}")
 def handle_download_testsuite(name: str):
     name = validate_string(value=name, object_error="Testsuite name")
@@ -113,3 +135,11 @@ def create_testsuite(name: str,
             os.mkdir(db_testsuite.results_path)
             save_bytes_to_file(db_testsuite.path, zip_file)
         return db_testsuite, status_code
+
+
+def delete_all_testsuiteresults(testsuite: TestSuite):
+    with Session(engine) as session:
+        for testsuiteresult in testsuite.testsuiteresults:
+            session.delete(testsuiteresult)
+            session.commit()
+

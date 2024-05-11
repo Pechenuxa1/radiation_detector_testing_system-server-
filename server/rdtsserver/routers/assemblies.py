@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import Response, status, APIRouter, HTTPException
 from sqlmodel import Session, select
 from server.rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
-    CrystalCreate, Period
+    CrystalCreate, Period, CrystalState, CrystalStatus
 from server.rdtsserver.dependencies import engine
 from server.rdtsserver.routers.crystals import create_crystal
 from server.rdtsserver.utils.validator import validate_string, validate_AssemblyCreate
@@ -32,6 +32,20 @@ def handle_read_assembly(name: str):
             current_crystals=assembly.current_crystals,
             timestamp=assembly.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         )
+
+
+@router.delete("/{name}")
+def handle_delete_assembly(name: str):
+    name = validate_string(value=name, object_error="Assembly name")
+    with Session(engine) as session:
+        assembly: Assembly = session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()
+
+        if assembly is None:
+            raise HTTPException(status_code=400, detail=f"Assembly with name {name} not found!")
+
+        delete_assembly(assembly)
+        session.delete(assembly)
+        session.commit()
 
 
 @router.get("", response_model=list[AssemblyRead])
@@ -99,3 +113,16 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
                 #)
 
     return db_assembly, status_code
+
+
+def delete_assembly(assembly: Assembly):
+    with Session(engine) as session:
+        crystal_states = session.exec(select(CrystalState)
+                                      .where(CrystalState.assembly_name == assembly.name)
+                                      .where(CrystalState.status == CrystalStatus.USED))
+
+        for crystal_state in crystal_states:
+            crystal_state.assembly_name = None
+            crystal_state.status = CrystalStatus.UNUSED
+        session.commit()
+
