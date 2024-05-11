@@ -162,7 +162,7 @@ class CrystalState(CrystalStateBase, table=True):
     __tablename__ = "crystals_states"
     idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     crystal_name: str = Field(foreign_key="crystals.name")
-    assembly_name: str = Field(None, foreign_key="assemblies.name")
+    assembly_name: str = Field(None, foreign_key="assemblies.name", nullable=True)
     timestamp: str = Field(sa_type=DateTime)
 
     # testsuiteresults: list["TestSuiteResult"] = relationship("TestSuiteResult",

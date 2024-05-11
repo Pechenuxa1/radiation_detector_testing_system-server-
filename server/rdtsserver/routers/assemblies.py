@@ -43,7 +43,7 @@ def handle_delete_assembly(name: str):
         if assembly is None:
             raise HTTPException(status_code=400, detail=f"Assembly with name {name} not found!")
 
-        delete_assembly(assembly)
+        delete_crystal_states(assembly)
         session.delete(assembly)
         session.commit()
 
@@ -115,7 +115,7 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
     return db_assembly, status_code
 
 
-def delete_assembly(assembly: Assembly):
+def delete_crystal_states(assembly: Assembly):
     with Session(engine) as session:
         crystal_states = session.exec(select(CrystalState)
                                       .where(CrystalState.assembly_name == assembly.name)
