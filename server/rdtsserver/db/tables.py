@@ -92,6 +92,7 @@ class Assembly(AssemblyBase, table=True):
 class AssemblyCreate(AssemblyBase):
     # name: str
     crystals: list[str]
+    timestamp: Optional[str] = None
 
 
 class AssemblyRead(AssemblyBase):
@@ -273,7 +274,7 @@ class TestSuiteResult(TestSuiteResultBase, table=True):
 
     @property
     def result_path(self) -> str:
-        return f"{self.testsuite.results_path}/{str(self.testsuite_idx)}-{str(self.idx)}.json"
+        return f"{self.testsuite.results_path}/result-{str(self.testsuite_idx)}-{str(self.idx)}.json"
 
     @property
     def config_path(self) -> str:
@@ -288,6 +289,7 @@ class TestSuiteResultInfo(TestSuiteResultBase):
     idx: int
     assembly_name: str
     timestamp: str
+    testsuite_name: str
 
 
 # Порядок сохранения результатов тестов (Клиент):

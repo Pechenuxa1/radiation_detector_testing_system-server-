@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from typing import Optional
 from fastapi import Response, status, APIRouter, UploadFile, HTTPException, Depends
@@ -17,13 +18,15 @@ def handle_create_testsuiteresult(testsuite_idx: int,
                                   assembly_name: str,
                                   config: UploadFile,
                                   result: UploadFile,
-                                  response: Response):
+                                  response: Response,
+                                  timestamp: Optional[str] = None):
     validate_positive_number(testsuite_idx, "Test suite id")
     assembly_name = validate_string(assembly_name, "Assembly name")
     db_testsuiteresult, response.status_code = create_testsuiteresult(testsuite_idx,
                                                                       assembly_name,
                                                                       config,
-                                                                      result)
+                                                                      result,
+                                                                      timestamp)
     # tsr = TestSuiteResultCreate(testsuite_idx=testsuite_idx, timestamp=str(db_testsuiteresult.timestamp))
     return db_testsuiteresult.idx
 
@@ -39,19 +42,22 @@ def handle_read_testsuiteresult(idx: int):
             idx=tsr.idx,
             assembly_name=tsr.crystal_states[0].assembly_name,
             timestamp=tsr.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-            testsuite_idx=tsr.testsuite_idx
+            testsuite_idx=tsr.testsuite_idx,
+            testsuite_name=tsr.testsuite.name
         )
         return tsr_info
 
 
 @router.delete("/{idx}")
-def handle_delete_testsuiteresult(idx:int):
+def handle_delete_testsuiteresult(idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
         if tsr is None:
             raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
 
+        os.remove(tsr.result_path)
+        os.remove(tsr.config_path)
         session.delete(tsr)
         session.commit()
 
@@ -92,7 +98,8 @@ def handle_read_all_testsuiteresults():
                     idx=tsr.idx,
                     assembly_name=tsr.crystal_states[0].assembly_name,
                     timestamp=tsr.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                    testsuite_idx=tsr.testsuite_idx
+                    testsuite_idx=tsr.testsuite_idx,
+                    testsuite_name=tsr.testsuite.name
                 )
             )
         #    tsr.timestamp = str(tsr.timestamp)
@@ -102,8 +109,8 @@ def handle_read_all_testsuiteresults():
 @router.get("/{start_date}/{end_date}", response_model=list[TestSuiteResultInfo])
 def handle_read_all_testsuiteresults_during_the_time(start_date: str, end_date: str):
     with Session(engine) as session:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-        end_date = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date, "%Y-%m-%d")
         testsuiteresults = session.exec(select(TestSuiteResult).where(TestSuiteResult.timestamp.between(start_date, end_date)))
         tsr_info = []
         for tsr in testsuiteresults:
@@ -112,7 +119,8 @@ def handle_read_all_testsuiteresults_during_the_time(start_date: str, end_date: 
                     idx=tsr.idx,
                     assembly_name=tsr.crystal_states[0].assembly_name,
                     timestamp=tsr.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
-                    testsuite_idx=tsr.testsuite_idx
+                    testsuite_idx=tsr.testsuite_idx,
+                    testsuite_name=tsr.testsuite.name
                 )
             )
         #    tsr.timestamp = str(tsr.timestamp)
@@ -127,7 +135,8 @@ def save_bytes_to_file(file_path, content: bytes):
 def create_testsuiteresult(testsuite_idx: int,
                            assembly_name: str,
                            config: UploadFile,
-                           result: UploadFile) -> (TestSuiteResult, status):
+                           result: UploadFile,
+                           timestamp: str) -> (TestSuiteResult, status):
     with (Session(engine) as session):
         subquery = (session.query(
             CrystalState.crystal_name,
@@ -146,9 +155,14 @@ def create_testsuiteresult(testsuite_idx: int,
         if not crystals:
             raise HTTPException(status_code=400, detail=f"Crystals in assembly {assembly_name} not found!")
 
+        if timestamp is None:
+            db_timestamp = datetime.now()
+        else:
+            db_timestamp = datetime.strptime(timestamp, '%Y-%m-%d%H:%M:%S')
+
         db_testsuiteresult = TestSuiteResult(testsuite_idx=testsuite_idx,
                                              crystal_states=crystals,
-                                             timestamp=datetime.now()
+                                             timestamp=db_timestamp
                                              )
         session.add(db_testsuiteresult)
         session.commit()

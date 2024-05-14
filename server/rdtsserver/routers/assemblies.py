@@ -63,11 +63,11 @@ def handle_read_all_assemblies():
         return assemblies_read
 
 
-@router.get("/{start_date}/{end_date})", response_model=list[AssemblyRead])
+@router.get("/{start_date}/{end_date}", response_model=list[AssemblyRead])
 def handle_read_all_assemblies_during_the_time(start_date: str, end_date: str):
     with Session(engine) as session:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d %H:%M:%S")
-        end_date = datetime.strptime(end_date, "%Y-%m-%d %H:%M:%S")
+        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date, "%Y-%m-%d")
         assemblies = session.exec(select(Assembly).where(Assembly.timestamp.between(start_date, end_date)))
         assemblies_read = []
         for assembly in assemblies:
@@ -86,7 +86,11 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
         db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name)).one_or_none()
         if db_assembly is None:
             status_code = status.HTTP_201_CREATED
-            db_assembly = Assembly(name=assembly.name, timestamp=datetime.now())
+            if assembly.timestamp is None:
+                timestamp = datetime.now()
+            else:
+                timestamp = datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S')
+            db_assembly = Assembly(name=assembly.name, timestamp=timestamp)
             #db_assembly = Assembly.from_orm(assembly)
             session.add(db_assembly)
             session.commit()
