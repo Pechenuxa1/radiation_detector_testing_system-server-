@@ -9,7 +9,7 @@ from enum import Enum, auto
 from sqlmodel import Field, Relationship
 from sqlalchemy import DateTime
 
-from server.rdtsserver.dependencies import engine
+from server.rdtsserver.dependencies import engine, get_session
 
 
 class RDTSDatabase(SQLModel):
@@ -21,6 +21,10 @@ class CrystalStatus(Enum):
     UNUSED = auto()  # не используется - использовался некоторой сборкой, но потом был удален или перемещен в другую
     DESTROYED = auto()  # уничтожен - не используется никакой сборкой. assembly_id и place отсутствует
 
+
+class RoleName(Enum):
+    ADMIN = auto
+    ENGINEER = auto()
 
 # crystals_states_testsuiteresults = Table('crystal_states_testsuiteresults', RDTSDatabase.metadata,
 #                                         Column('crystalstate_idx', Integer,
@@ -304,6 +308,7 @@ class TestSuiteResultInfo(TestSuiteResultBase):
 class UserRegister(RDTSDatabase):
     login: str
     password: str
+    role: int
 
 
 class User(RDTSDatabase, table=True):
@@ -311,15 +316,15 @@ class User(RDTSDatabase, table=True):
     idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     login: str = Field()
     hashed_password: str = Field()
-    role: str = Field()
-    access_token: str = Field(default=None)
-    refresh_token: str = Field(default=None)
+    role: int = Field(foreign_key="roles.idx")
+    access_token: str = Field(default=None, nullable=True)
+    refresh_token: str = Field(default=None, nullable=True)
 
 
 class Role(RDTSDatabase, table=True):
     __tablename__ = "roles"
-    idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
-    name: str = Field()
+    idx: int = Field(None, primary_key=True)
+    name: RoleName = Field()
 
 
 class Token(RDTSDatabase):

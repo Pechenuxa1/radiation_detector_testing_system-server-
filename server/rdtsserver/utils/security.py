@@ -15,7 +15,7 @@ from jose import JWTError, jwt
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/sign_in")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/sign-in")
 
 
 def verify_password(plain_password, hashed_password):
@@ -98,4 +98,10 @@ def validate_refresh_token(token: Annotated[str, Depends(oauth2_scheme)]):
     except JWTError:
         raise credential_exception
     return payload['sub']
+
+
+def check_role(user_login: str, role_idxs: list[int]):
+    user = get_user(user_login)
+    if user.role not in role_idxs:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"User {user_login} doesn't have needed role!")
 
