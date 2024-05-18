@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Annotated
 from fastapi import Response, status, APIRouter, UploadFile, HTTPException, Depends
 from sqlalchemy import select, and_, func
 from sqlmodel import Session, select
@@ -8,13 +8,15 @@ from starlette.responses import FileResponse
 
 from server.rdtsserver.db.tables import (TestSuiteResult, TestSuiteResultInfo, TestSuiteResultCreate, CrystalState)
 from server.rdtsserver.dependencies import engine
+from server.rdtsserver.utils.security import validate_access_token
 from server.rdtsserver.utils.validator import validate_positive_number, validate_string
 
 router = APIRouter()
 
 
 @router.post("", status_code=207, response_model=int)
-def handle_create_testsuiteresult(testsuite_idx: int,
+def handle_create_testsuiteresult(user_login: Annotated[str, Depends(validate_access_token)],
+                                  testsuite_idx: int,
                                   assembly_name: str,
                                   config: UploadFile,
                                   result: UploadFile,
@@ -32,7 +34,7 @@ def handle_create_testsuiteresult(testsuite_idx: int,
 
 
 @router.get("/{idx}", response_model=Optional[TestSuiteResultInfo])
-def handle_read_testsuiteresult(idx: int):
+def handle_read_testsuiteresult(user_login: Annotated[str, Depends(validate_access_token)], idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -63,7 +65,7 @@ def handle_delete_testsuiteresult(idx: int):
 
 
 @router.get("/{idx}/config")
-def handle_read_testsuiteresult_config(idx: int):
+def handle_read_testsuiteresult_config(user_login: Annotated[str, Depends(validate_access_token)], idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -75,7 +77,7 @@ def handle_read_testsuiteresult_config(idx: int):
 
 
 @router.get("{idx}/result")
-def handle_read_testsuiteresult_result(idx: int):
+def handle_read_testsuiteresult_result(user_login: Annotated[str, Depends(validate_access_token)], idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         db_testsuiteresult = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
@@ -88,7 +90,7 @@ def handle_read_testsuiteresult_result(idx: int):
 
 
 @router.get("", response_model=list[TestSuiteResultInfo])
-def handle_read_all_testsuiteresults():
+def handle_read_all_testsuiteresults(user_login: Annotated[str, Depends(validate_access_token)]):
     with Session(engine) as session:
         testsuiteresults = session.exec(select(TestSuiteResult)).all()
         tsr_info = []
@@ -107,7 +109,7 @@ def handle_read_all_testsuiteresults():
 
 
 @router.get("/{start_date}/{end_date}", response_model=list[TestSuiteResultInfo])
-def handle_read_all_testsuiteresults_during_the_time(start_date: str, end_date: str):
+def handle_read_all_testsuiteresults_during_the_time(user_login: Annotated[str, Depends(validate_access_token)], start_date: str, end_date: str):
     with Session(engine) as session:
         start_date = datetime.strptime(start_date, "%Y-%m-%d")
         end_date = datetime.strptime(end_date, "%Y-%m-%d")
@@ -132,7 +134,8 @@ def save_bytes_to_file(file_path, content: bytes):
         file.write(content)
 
 
-def create_testsuiteresult(testsuite_idx: int,
+def create_testsuiteresult(user_login: Annotated[str, Depends(validate_access_token)],
+                           testsuite_idx: int,
                            assembly_name: str,
                            config: UploadFile,
                            result: UploadFile,

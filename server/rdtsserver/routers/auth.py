@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
-from server.rdtsserver.dependencies import engine
+from server.rdtsserver.dependencies import engine, ROLE_ADMIN
 
 from server.rdtsserver.db.tables import User, Token
 from server.rdtsserver.db.tables import UserRegister
@@ -14,13 +14,14 @@ from sqlmodel.sql.expression import select
 from fastapi.exceptions import HTTPException
 
 from server.rdtsserver.utils.security import pwd_context, authenticate_user, \
-    create_access_token, create_refresh_token, validate_refresh_token, validate_access_token, get_user
+    create_access_token, create_refresh_token, validate_refresh_token, validate_access_token, get_user, check_role
 
 router = APIRouter()
 
 
-@router.post('/sign_up', status_code=status.HTTP_201_CREATED, response_model=User)
-async def sign_up(user: UserRegister):
+@router.post('/sign-up', status_code=status.HTTP_201_CREATED, response_model=User)
+async def sign_up(user_login: Annotated[str, Depends(validate_access_token)], user: UserRegister):
+    check_role(user_login, [ROLE_ADMIN])
     new_user = create_user(user)
     return new_user
 
@@ -29,7 +30,7 @@ def create_user(user: UserRegister) -> User:
     with Session(engine) as session:
         new_user = session.exec(select(User).where(User.login == user.login)).one_or_none()
         if new_user is not None:
-            raise HTTPException(status_code=400, detail=f"User with login {user.login} already exists!")
+            raise HTTPException(status_code=400, detail=f"User with login \"{user.login}\" already exists!")
         new_user = User(login=user.login, hashed_password=pwd_context.hash(user.password), role=user.role)
         session.add(new_user)
         session.commit()
@@ -37,7 +38,7 @@ def create_user(user: UserRegister) -> User:
         return new_user
 
 
-@router.post('/sign_in', status_code=status.HTTP_200_OK, response_model=Token)
+@router.post('/sign-in', status_code=status.HTTP_200_OK, response_model=Token)
 async def sign_in(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
@@ -82,7 +83,7 @@ def refresh_token(refresh_token: str):
     return Token(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.get("/sign_out", status_code=status.HTTP_200_OK)
+@router.get("/sign-out", status_code=status.HTTP_200_OK)
 def sign_out(user_login: Annotated[str, Depends(validate_access_token)]):
     with Session(engine) as session:
         user = get_user(user_login)
@@ -93,11 +94,21 @@ def sign_out(user_login: Annotated[str, Depends(validate_access_token)]):
         session.refresh(user)
 
 
-@router.get("/get_me")
+@router.get("/get-me")
 def get_me(user_login: Annotated[str, Depends(validate_access_token)]):
+    check_role(user_login, [ROLE_ADMIN])
     return f"User login: {user_login}"
 
 
+@router.get("/get-users", response_model=list[str])
+def get_users(user_login: Annotated[str, Depends(validate_access_token)]):
+    check_role(user_login, [ROLE_ADMIN])
+    with Session(engine) as session:
+        users = session.exec(select(User)).all()
+        logins = []
+        for user in users:
+            logins.append(user.login)
+        return logins
 
 
 

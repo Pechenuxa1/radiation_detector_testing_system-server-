@@ -1,26 +1,27 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Annotated
 
-from fastapi import Response, status, APIRouter, HTTPException
+from fastapi import Response, status, APIRouter, HTTPException, Depends
 from sqlmodel import Session, select
 from server.rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
     CrystalCreate, Period, CrystalState, CrystalStatus
 from server.rdtsserver.dependencies import engine
 from server.rdtsserver.routers.crystals import create_crystal
+from server.rdtsserver.utils.security import validate_access_token
 from server.rdtsserver.utils.validator import validate_string, validate_AssemblyCreate
 
 router = APIRouter()
 
 
 @router.post("", status_code=207, response_model=str)
-def handle_create_assembly(assembly: AssemblyCreate, response: Response):
+def handle_create_assembly(user_login: Annotated[str, Depends(validate_access_token)], assembly: AssemblyCreate, response: Response):
     assembly = validate_AssemblyCreate(assembly=assembly)
     db_assembly, response.status_code = create_assembly(assembly)
     return db_assembly.name
 
 
 @router.get("/{name}", response_model=Optional[AssemblyRead])
-def handle_read_assembly(name: str):
+def handle_read_assembly(user_login: Annotated[str, Depends(validate_access_token)], name: str):
     name = validate_string(value=name, object_error="Assembly name")
     with Session(engine) as session:
         assembly = session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()
@@ -49,7 +50,7 @@ def handle_delete_assembly(name: str):
 
 
 @router.get("", response_model=list[AssemblyRead])
-def handle_read_all_assemblies():
+def handle_read_all_assemblies(user_login: Annotated[str, Depends(validate_access_token)]):
     with Session(engine) as session:
         assemblies = session.exec(select(Assembly)).all()
         assemblies_read = []
@@ -63,8 +64,8 @@ def handle_read_all_assemblies():
         return assemblies_read
 
 
-@router.get("/{start_date}/{end_date}", response_model=list[AssemblyRead])
-def handle_read_all_assemblies_during_the_time(start_date: str, end_date: str):
+@router.get("/{start_date}/{end_date})", response_model=list[AssemblyRead])
+def handle_read_all_assemblies_during_the_time(user_login: Annotated[str, Depends(validate_access_token)], start_date: str, end_date: str):
     with Session(engine) as session:
         start_date = datetime.strptime(start_date, "%Y-%m-%d")
         end_date = datetime.strptime(end_date, "%Y-%m-%d")
