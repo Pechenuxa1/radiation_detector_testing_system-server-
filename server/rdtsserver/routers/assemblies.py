@@ -36,7 +36,7 @@ def handle_read_assembly(user_login: Annotated[str, Depends(validate_access_toke
 
 
 @router.delete("/{name}")
-def handle_delete_assembly(name: str):
+def handle_delete_assembly(user_login: Annotated[str, Depends(validate_access_token)], name: str):
     name = validate_string(value=name, object_error="Assembly name")
     with Session(engine) as session:
         assembly: Assembly = session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()

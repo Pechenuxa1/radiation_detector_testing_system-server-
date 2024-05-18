@@ -8,7 +8,7 @@ from server.rdtsserver.db.tables import RDTSDatabase
 from server.rdtsserver.dependencies import engine, get_session
 from server.rdtsserver.routers import assemblies, crystals, crystalstates, testsuites, testsuiteresults
 from server.rdtsserver.versions.v1.v1_0_1 import app_1_0_1
-#from server.rdtsserver.versions.v1.v1_0_2 import app_1_0_2
+from server.rdtsserver.versions.v1.v1_0_2 import app_1_0_2
 
 
 @asynccontextmanager
@@ -43,7 +43,7 @@ main_app.include_router(testsuiteresults.router,
 ACTUAL_API_VERSION = "/v1.0.2"
 
 main_app.mount("/v1.0.1", app_1_0_1)
-#main_app.mount("/v1.0.2", app_1_0_2)
+main_app.mount("/v1.0.2", app_1_0_2)
 
 
 @main_app.get("/actual_api")

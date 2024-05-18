@@ -47,7 +47,7 @@ def handle_read_testsuite(user_login: Annotated[str, Depends(validate_access_tok
 
 
 @router.delete("/{name}/{version}")
-def handle_delete_testsuite(name: str, version: str):
+def handle_delete_testsuite(user_login: Annotated[str, Depends(validate_access_token)], name: str, version: str):
     name = validate_string(value=name, object_error="Testsuite name")
     with Session(engine) as session:
         testsuite: TestSuite = session.exec(select(TestSuite)

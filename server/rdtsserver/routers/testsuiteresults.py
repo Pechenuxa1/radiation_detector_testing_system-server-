@@ -51,7 +51,7 @@ def handle_read_testsuiteresult(user_login: Annotated[str, Depends(validate_acce
 
 
 @router.delete("/{idx}")
-def handle_delete_testsuiteresult(idx: int):
+def handle_delete_testsuiteresult(user_login: Annotated[str, Depends(validate_access_token)], idx: int):
     validate_positive_number(idx, "Test suite results id")
     with Session(engine) as session:
         tsr = session.exec(select(TestSuiteResult).where(TestSuiteResult.idx == idx)).one_or_none()
