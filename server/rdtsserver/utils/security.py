@@ -77,8 +77,13 @@ def validate_access_token(token: Annotated[str, Depends(oauth2_scheme)]):
         user = get_user(payload['sub'])
         if user.access_token != token:
             return credential_exception
-    except JWTError:
-        raise credential_exception
+    except JWTError as jwt_error:
+        print(jwt_error.args[0])
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=jwt_error.args[0],
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     return payload['sub']
 
 
