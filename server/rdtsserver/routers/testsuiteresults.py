@@ -134,8 +134,7 @@ def save_bytes_to_file(file_path, content: bytes):
         file.write(content)
 
 
-def create_testsuiteresult(user_login: Annotated[str, Depends(validate_access_token)],
-                           testsuite_idx: int,
+def create_testsuiteresult(testsuite_idx: int,
                            assembly_name: str,
                            config: UploadFile,
                            result: UploadFile,

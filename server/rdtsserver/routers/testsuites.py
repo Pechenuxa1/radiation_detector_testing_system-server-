@@ -62,11 +62,16 @@ def handle_delete_testsuite(user_login: Annotated[str, Depends(validate_access_t
                                  .where(TestSuite.version != version)).all()
 
         if len(testsuites_other) == 0:
-            delete_all_testsuiteresults(testsuite)
+            for testsuiteresult in testsuite.testsuiteresults:
+                os.remove(testsuiteresult.result_path)
+                os.remove(testsuiteresult.config_path)
+                session.delete(testsuiteresult)
+                session.commit()
+
+            os.remove(testsuite.path)
 
         session.delete(testsuite)
         session.commit()
-        os.remove(testsuite.path)
 
 
 @router.get("/download/{name}")
@@ -145,14 +150,4 @@ def create_testsuite(name: str,
             os.mkdir(db_testsuite.results_path)
             save_bytes_to_file(db_testsuite.path, zip_file)
         return db_testsuite, status_code
-
-
-def delete_all_testsuiteresults(testsuite: TestSuite):
-    with Session(engine) as session:
-        for testsuiteresult in testsuite.testsuiteresults:
-            os.remove(testsuiteresult.result_path)
-            os.remove(testsuiteresult.config_path)
-            session.delete(testsuiteresult)
-            session.commit()
-
 
