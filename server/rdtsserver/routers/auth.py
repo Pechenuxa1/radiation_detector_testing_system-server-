@@ -100,15 +100,16 @@ def get_me(user_login: Annotated[str, Depends(validate_access_token)]):
     return f"User login: {user_login}"
 
 
-@router.get("/get-users", response_model=list[str])
+@router.get("/get-users", response_model=[])
 def get_users(user_login: Annotated[str, Depends(validate_access_token)]):
     check_role(user_login, [ROLE_ADMIN])
     with Session(engine) as session:
         users = session.exec(select(User)).all()
-        logins = []
+        pairs = []
         for user in users:
-            logins.append(user.login)
-        return logins
+            pair = {"login": user.login, "role_id": user.role}
+            pairs.append(pair)
+        return pairs
 
 
 
