@@ -68,8 +68,8 @@ def handle_read_all_assemblies(user_login: Annotated[str, Depends(validate_acces
 @router.get("/{start_date}/{end_date}", response_model=list[AssemblyRead])
 def handle_read_all_assemblies_during_the_time(user_login: Annotated[str, Depends(validate_access_token)], start_date: str, end_date: str):
     with Session(engine) as session:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(microsecond=0)
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(microsecond=0)
         results = session.query(
             CrystalState.assembly_name,
             CrystalState.timestamp,
@@ -93,14 +93,14 @@ def handle_read_all_assemblies_during_the_time(user_login: Annotated[str, Depend
 def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
     with Session(engine) as session:
         status_code = status.HTTP_207_MULTI_STATUS
-        db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name).where(Assembly.timestamp == datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S'))).one_or_none()
+        db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name).where(Assembly.timestamp == datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S').replace(microsecond=0))).one_or_none()
         if db_assembly:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Assembly with name {assembly.name} and time {assembly.timestamp} already exists!")
         db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name)).one_or_none()
         if assembly.timestamp is None:
-            timestamp = datetime.now()
+            timestamp = datetime.now().replace(microsecond=0)
         else:
-            timestamp = datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S').replace(microsecond=0)
 
         if db_assembly is None:
             status_code = status.HTTP_201_CREATED

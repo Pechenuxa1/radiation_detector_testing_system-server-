@@ -117,8 +117,8 @@ def handle_read_all_testsuites(user_login: Annotated[str, Depends(validate_acces
 @router.get("/{start_date}/{end_date}", response_model=list[TestSuiteRead])
 def handle_read_all_testsuites_during_the_time(user_login: Annotated[str, Depends(validate_access_token)], start_date: str, end_date: str):
     with Session(engine) as session:
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").replace(microsecond=0)
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").replace(microsecond=0)
         testsuites = session.exec(select(TestSuite).where(TestSuite.timestamp.between(start_date, end_date))).all()
         testsuites_read = []
         for testsuite in testsuites:
@@ -152,9 +152,9 @@ def create_testsuite(name: str,
                 detail=f"Testsuite with name {name} and version {version} already exists!"
             )
         if timestamp is None:
-            db_timestamp = datetime.now()
+            db_timestamp = datetime.now().replace(microsecond=0)
         else:
-            db_timestamp = datetime.strptime(timestamp, '%Y-%m-%d%H:%M:%S')
+            db_timestamp = datetime.strptime(timestamp, '%Y-%m-%d%H:%M:%S').replace(microsecond=0)
         status_code = status.HTTP_201_CREATED
         db_testsuite = TestSuite(name=name,
                                  version=version,
