@@ -12,7 +12,6 @@ from sqlmodel import Session, select
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/sign-in")
@@ -66,40 +65,39 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
 
 def validate_access_token(token: Annotated[str, Depends(oauth2_scheme)]):
     credential_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token"
+    )
+
     try:
         payload = jwt.decode(token, os.getenv("ACCESS_TOKEN_SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
         if payload['scope'] != "access_token" or payload['sub'] is None:
             raise credential_exception
         user = get_user(payload['sub'])
         if user.access_token != token:
-            return credential_exception
+            raise credential_exception
     except JWTError as jwt_error:
-        print(jwt_error.args[0])
+        message = str(jwt_error.args[0])
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=jwt_error.args[0],
-            headers={"WWW-Authenticate": "Bearer"}
+            detail=message
         )
     return payload['sub']
 
 
 def validate_refresh_token(token: Annotated[str, Depends(oauth2_scheme)]):
     credential_exception = HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"}
-        )
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token"
+    )
+
     try:
         payload = jwt.decode(token, os.getenv("REFRESH_TOKEN_SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
         if payload['scope'] != "refresh_token" or payload['sub'] is None:
             raise credential_exception
         user = get_user(payload['sub'])
         if user.refresh_token != token:
-            return credential_exception
+            raise credential_exception
     except JWTError:
         raise credential_exception
     return payload['sub']
@@ -108,5 +106,5 @@ def validate_refresh_token(token: Annotated[str, Depends(oauth2_scheme)]):
 def check_role(user_login: str, role_idxs: list[int]):
     user = get_user(user_login)
     if user.role not in role_idxs:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"User {user_login} doesn't have needed role!")
-
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"User {user_login} doesn't have needed role!")

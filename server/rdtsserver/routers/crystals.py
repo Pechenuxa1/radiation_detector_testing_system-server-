@@ -53,7 +53,7 @@ def handle_read_all_crystals(user_login: Annotated[str, Depends(validate_access_
         return session.exec(select(Crystal)).all()
 
 
-def create_crystal(crystal: CrystalCreate) -> (Crystal, status):
+def create_crystal(crystal: CrystalCreate, timestamp: datetime) -> (Crystal, status):
     with Session(engine) as session:
         pull_out_some_crystal_from_this_assembly(crystal.name, crystal.assembly_name, crystal.place, CrystalStatus.UNUSED)
 
@@ -78,7 +78,7 @@ def create_crystal(crystal: CrystalCreate) -> (Crystal, status):
         create_crystal_state(CrystalStateCreate(
                                                 crystal_name=crystal.name,
                                                 assembly_name=crystal.assembly_name,
-                                                timestamp=str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                                                timestamp=timestamp,
                                                 place=crystal.place,
                                                 status=CrystalStatus.USED)
                                                 )

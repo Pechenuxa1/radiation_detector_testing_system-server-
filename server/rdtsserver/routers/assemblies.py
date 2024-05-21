@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import Optional, Annotated
 
 from fastapi import Response, status, APIRouter, HTTPException, Depends
+from sqlalchemy import func
 from sqlmodel import Session, select
 from server.rdtsserver.db.tables import Assembly, AssemblyCreate, AssemblyRead, \
     CrystalCreate, Period, CrystalState, CrystalStatus
@@ -64,33 +65,45 @@ def handle_read_all_assemblies(user_login: Annotated[str, Depends(validate_acces
         return assemblies_read
 
 
-@router.get("/{start_date}/{end_date})", response_model=list[AssemblyRead])
+@router.get("/{start_date}/{end_date}", response_model=list[AssemblyRead])
 def handle_read_all_assemblies_during_the_time(user_login: Annotated[str, Depends(validate_access_token)], start_date: str, end_date: str):
     with Session(engine) as session:
         start_date = datetime.strptime(start_date, "%Y-%m-%d")
         end_date = datetime.strptime(end_date, "%Y-%m-%d")
-        assemblies = session.exec(select(Assembly).where(Assembly.timestamp.between(start_date, end_date)))
+        results = session.query(
+            CrystalState.assembly_name,
+            CrystalState.timestamp,
+            func.array_agg(CrystalState.crystal_name)
+        ).where(
+            CrystalState.timestamp.between(start_date, end_date)
+        ).group_by(CrystalState.assembly_name, CrystalState.timestamp).all()
         assemblies_read = []
-        for assembly in assemblies:
-            assemblies_read.append(AssemblyRead(
-                name=assembly.name,
-                crystal_quantity=assembly.crystal_quantity,
-                current_crystals=assembly.current_crystals,
-                timestamp=assembly.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-            ))
+        for assembly_name, timestamp, crystal_names in results:
+            print(f"Assembly read: {assembly_name, timestamp, crystal_names}")
+            if assembly_name is not None:
+                assemblies_read.append(AssemblyRead(
+                    name=assembly_name,
+                    crystal_quantity=len(crystal_names),
+                    current_crystals=crystal_names,
+                    timestamp=timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                ))
         return assemblies_read
 
 
 def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
     with Session(engine) as session:
         status_code = status.HTTP_207_MULTI_STATUS
+        db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name).where(Assembly.timestamp == datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S'))).one_or_none()
+        if db_assembly:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Assembly with name {assembly.name} and time {assembly.timestamp} already exists!")
         db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name)).one_or_none()
+        if assembly.timestamp is None:
+            timestamp = datetime.now()
+        else:
+            timestamp = datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S')
+
         if db_assembly is None:
             status_code = status.HTTP_201_CREATED
-            if assembly.timestamp is None:
-                timestamp = datetime.now()
-            else:
-                timestamp = datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S')
             db_assembly = Assembly(name=assembly.name, timestamp=timestamp)
             #db_assembly = Assembly.from_orm(assembly)
             session.add(db_assembly)
@@ -103,7 +116,8 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
                 db_crystal, crystal_status_code = create_crystal(CrystalCreate(
                     name=crystal_name,
                     assembly_name=assembly.name,
-                    place=place)
+                    place=place),
+                timestamp
                 )
 
                 #pull_out_this_crystal_from_some_assembly(crystal_name, CrystalStatus.UNUSED)
@@ -127,7 +141,6 @@ def delete_crystal_states(assembly: Assembly):
                                       .where(CrystalState.status == CrystalStatus.USED))
 
         for crystal_state in crystal_states:
-            crystal_state.assembly_name = None
             crystal_state.status = CrystalStatus.UNUSED
         session.commit()
 

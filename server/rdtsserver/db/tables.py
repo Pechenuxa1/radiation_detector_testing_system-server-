@@ -158,7 +158,7 @@ class CrystalStateBase(RDTSDatabase):
     # idx: int
     crystal_name: str
     assembly_name: str
-    timestamp: str
+    timestamp: datetime
     place: int
     status: CrystalStatus
 
@@ -168,7 +168,7 @@ class CrystalState(CrystalStateBase, table=True):
     idx: int = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     crystal_name: str = Field(foreign_key="crystals.name")
     assembly_name: str = Field(None, foreign_key="assemblies.name", nullable=True)
-    timestamp: str = Field(sa_type=DateTime)
+    timestamp: datetime
 
     # testsuiteresults: list["TestSuiteResult"] = relationship("TestSuiteResult",
     #                                                         secondary=crystals_states_testsuiteresults,
