@@ -13,6 +13,8 @@ from server.rdtsserver.utils.security import validate_access_token
 
 from server.rdtsserver.utils.validator import validate_string
 
+import shutil
+
 router = APIRouter()
 
 
@@ -63,12 +65,21 @@ def handle_delete_testsuite(user_login: Annotated[str, Depends(validate_access_t
 
         if len(testsuites_other) == 0:
             for testsuiteresult in testsuite.testsuiteresults:
-                os.remove(testsuiteresult.result_path)
-                os.remove(testsuiteresult.config_path)
+                if os.path.exists(testsuiteresult.result_path):
+                    os.remove(testsuiteresult.result_path)
+                    #shutil.rmtree(testsuiteresult.result_path)
+                if os.path.exists(testsuiteresult.config_path):
+                    os.remove(testsuiteresult.config_path)
+                    #shutil.rmtree(testsuiteresult.config_path)
                 session.delete(testsuiteresult)
                 session.commit()
 
-            os.remove(testsuite.path)
+            if os.path.exists(testsuite.path):
+                os.remove(testsuite.path)
+                #shutil.rmtree(testsuite.path)
+            if os.path.exists(testsuite.results_path):
+                #os.remove(testsuite.results_path)
+                shutil.rmtree(testsuite.results_path)
 
         session.delete(testsuite)
         session.commit()
@@ -135,19 +146,23 @@ def create_testsuite(name: str,
         db_testsuite = session.exec(select(TestSuite)
                                     .where(TestSuite.name == name)
                                     .where(TestSuite.version == version)).one_or_none()
-        if db_testsuite is None:
-            if timestamp is None:
-                db_timestamp = datetime.now()
-            else:
-                db_timestamp = datetime.strptime(timestamp, '%Y-%m-%d%H:%M:%S')
-            status_code = status.HTTP_201_CREATED
-            db_testsuite = TestSuite(name=name,
-                                     version=version,
-                                     timestamp=db_timestamp)
-            session.add(db_testsuite)
-            session.commit()
-            session.refresh(db_testsuite)
-            os.mkdir(db_testsuite.results_path)
-            save_bytes_to_file(db_testsuite.path, zip_file)
+        if db_testsuite:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Testsuite with name {name} and version {version} already exists!"
+            )
+        if timestamp is None:
+            db_timestamp = datetime.now()
+        else:
+            db_timestamp = datetime.strptime(timestamp, '%Y-%m-%d%H:%M:%S')
+        status_code = status.HTTP_201_CREATED
+        db_testsuite = TestSuite(name=name,
+                                 version=version,
+                                 timestamp=db_timestamp)
+        session.add(db_testsuite)
+        session.commit()
+        session.refresh(db_testsuite)
+        os.mkdir(db_testsuite.results_path)
+        save_bytes_to_file(db_testsuite.path, zip_file)
         return db_testsuite, status_code
 

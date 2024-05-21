@@ -9,6 +9,8 @@ services:
             POSTGRES_PASSWORD: rdts
         volumes:
             - sql_volume:/var/lib/postgresql/data
+            - testsuites_volume:/testsuites
+            - results_volume:/results
         ports:
             - "5432:5432"
         networks:

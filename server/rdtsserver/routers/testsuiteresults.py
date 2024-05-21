@@ -1,4 +1,5 @@
 import os
+import shutil
 from datetime import datetime
 from typing import Optional, Annotated
 from fastapi import Response, status, APIRouter, UploadFile, HTTPException, Depends
@@ -58,8 +59,12 @@ def handle_delete_testsuiteresult(user_login: Annotated[str, Depends(validate_ac
         if tsr is None:
             raise HTTPException(status_code=400, detail=f"Test suite result with id {idx} not found!")
 
-        os.remove(tsr.result_path)
-        os.remove(tsr.config_path)
+        if os.path.exists(tsr.result_path):
+            os.remove(tsr.result_path)
+            #shutil.rmtree(tsr.result_path)
+        if os.path.exists(tsr.config_path):
+            os.remove(tsr.config_path)
+            #shutil.rmtree(tsr.config_path)
         session.delete(tsr)
         session.commit()
 

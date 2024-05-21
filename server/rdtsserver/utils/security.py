@@ -28,8 +28,9 @@ def get_password_hash(password):
 def get_user(login: str):
     with Session(engine) as session:
         user: User = session.exec(select(User).where(User.login == login)).one_or_none()
-        if user is not None:
-            return user
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Not enough rights")
+        return user
 
 
 def authenticate_user(login: str, password: str):
