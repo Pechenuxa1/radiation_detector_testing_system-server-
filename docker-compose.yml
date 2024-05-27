@@ -18,16 +18,15 @@ services:
         container_name: pgadmin
         image: dpage/pgadmin4:2022-11-15-1
         environment:
-            PGADMIN_DEFAULT_EMAIL: "v.tatarintsev@g.nsu.ru"
-            PGADMIN_DEFAULT_PASSWORD: "postgres"
+            PGADMIN_DEFAULT_EMAIL: "admin@pgadmin.com"
+            PGADMIN_DEFAULT_PASSWORD: "admin"
         ports:
             - "5050:80"
         networks:
             - rdts_network
 
     server:
-        build:
-            context: .
+        image: pechenuxa1/rdts_server:1.0
         container_name: backend
         depends_on:
             - postgres

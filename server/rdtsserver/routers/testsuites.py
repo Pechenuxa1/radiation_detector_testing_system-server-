@@ -6,10 +6,10 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlmodel import Session, select
 from server.rdtsserver.db.tables import TestSuite
-from server.rdtsserver.dependencies import engine
+from server.rdtsserver.dependencies import engine, ROLE_ENGINEER, ROLE_ADMIN
 
 from server.rdtsserver.db.tables import TestSuiteRead
-from server.rdtsserver.utils.security import validate_access_token
+from server.rdtsserver.utils.security import validate_access_token, check_role
 
 from server.rdtsserver.utils.validator import validate_string
 
@@ -25,6 +25,7 @@ def handle_create_testsuite(user_login: Annotated[str, Depends(validate_access_t
                             zip_file: UploadFile,
                             response: Response,
                             timestamp: Optional[str] = None):
+    check_role(user_login, [ROLE_ADMIN, ROLE_ENGINEER])
     name = validate_string(name, "Test suite name")
     version = validate_string(version, "Test suite version")
     db_testsuite, response.status_code = create_testsuite(name, version, zip_file, timestamp)

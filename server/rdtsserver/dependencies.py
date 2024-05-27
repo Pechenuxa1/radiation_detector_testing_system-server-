@@ -19,3 +19,4 @@ def get_session():
 
 ROLE_ADMIN = 1
 ROLE_ENGINEER = 2
+ROLE_USER = 3

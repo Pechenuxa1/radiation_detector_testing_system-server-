@@ -25,6 +25,7 @@ class CrystalStatus(Enum):
 class RoleName(Enum):
     ADMIN = auto
     ENGINEER = auto()
+    USER = auto()
 
 # crystals_states_testsuiteresults = Table('crystal_states_testsuiteresults', RDTSDatabase.metadata,
 #                                         Column('crystalstate_idx', Integer,

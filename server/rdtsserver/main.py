@@ -17,29 +17,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 main_app = FastAPI(title="RDTS Server", lifespan=lifespan)
-'''
-main_app = FastAPI(title="RDTS Server", version="1.0.1", lifespan=lifespan)
-main_app.include_router(assemblies.router,
-                        prefix="/assemblies",
-                        tags=["assemblies"],
-                        dependencies=[Depends(get_session)])
-main_app.include_router(crystals.router,
-                        prefix="/crystals",
-                        tags=["crystals"],
-                        dependencies=[Depends(get_session)])
-main_app.include_router(crystalstates.router,
-                        prefix="/crystalstates",
-                        tags=["crystalstates"],
-                        dependencies=[Depends(get_session)])
-main_app.include_router(testsuites.router,
-                        prefix="/testsuites",
-                        tags=["testsuites"],
-                        dependencies=[Depends(get_session)])
-main_app.include_router(testsuiteresults.router,
-                        prefix="/testsuiteresults",
-                        tags=["testsuiteresults"],
-                        dependencies=[Depends(get_session)])
-'''
+
 ACTUAL_API_VERSION = "/v1.0.2"
 
 main_app.mount("/v1.0.1", app_1_0_1)
