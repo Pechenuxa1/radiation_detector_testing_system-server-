@@ -36,18 +36,19 @@ def handle_read_assembly(user_login: Annotated[str, Depends(validate_access_toke
         )
 
 
-@router.delete("/{name}")
-def handle_delete_assembly(user_login: Annotated[str, Depends(validate_access_token)], name: str):
+@router.delete("/{name}/{timestamp}")
+def handle_delete_assembly(user_login: Annotated[str, Depends(validate_access_token)], name: str, timestamp: str):
     name = validate_string(value=name, object_error="Assembly name")
-    with Session(engine) as session:
-        assembly: Assembly = session.exec(select(Assembly).where(Assembly.name == name)).one_or_none()
+    timestamp = datetime.strptime(timestamp, '%Y-%m-%d%H:%M:%S').replace(microsecond=0)
+    #with Session(engine) as session:
+        #assembly: Assembly = session.exec(select(Assembly).where(Assembly.name == name).where(Assembly.timestamp == timestamp)).one_or_none()
 
-        if assembly is None:
-            raise HTTPException(status_code=400, detail=f"Assembly with name {name} not found!")
+        #if assembly is None:
+        #    raise HTTPException(status_code=400, detail=f"Assembly with name {name} not found!")
 
-        delete_crystal_states(assembly)
-        session.delete(assembly)
-        session.commit()
+    delete_crystal_states(name, timestamp)
+        #session.delete(assembly)
+        #session.commit()
 
 
 @router.get("", response_model=list[AssemblyRead])
@@ -96,12 +97,13 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
         db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name).where(Assembly.timestamp == datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S').replace(microsecond=0))).one_or_none()
         if db_assembly:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Assembly with name {assembly.name} and time {assembly.timestamp} already exists!")
-        db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name)).one_or_none()
+
         if assembly.timestamp is None:
             timestamp = datetime.now().replace(microsecond=0)
         else:
             timestamp = datetime.strptime(assembly.timestamp, '%Y-%m-%d %H:%M:%S').replace(microsecond=0)
 
+        db_assembly = session.exec(select(Assembly).where(Assembly.name == assembly.name)).one_or_none()
         if db_assembly is None:
             status_code = status.HTTP_201_CREATED
             db_assembly = Assembly(name=assembly.name, timestamp=timestamp)
@@ -134,13 +136,13 @@ def create_assembly(assembly: AssemblyCreate) -> (Assembly, status):
     return db_assembly, status_code
 
 
-def delete_crystal_states(assembly: Assembly):
+def delete_crystal_states(name: str, timestamp: datetime):
     with Session(engine) as session:
         crystal_states = session.exec(select(CrystalState)
-                                      .where(CrystalState.assembly_name == assembly.name)
-                                      .where(CrystalState.status == CrystalStatus.USED))
+                                      .where(CrystalState.assembly_name == name)
+                                      .where(CrystalState.timestamp == timestamp)).all()
 
         for crystal_state in crystal_states:
-            crystal_state.status = CrystalStatus.UNUSED
+            session.delete(crystal_state)
         session.commit()
 

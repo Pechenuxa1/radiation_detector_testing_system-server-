@@ -2,7 +2,7 @@ FROM python:3.11
 
 COPY /server /server
 #WORKDIR /server
-
+ENV PYTHONPATH "${PYTHONPATH}:/server"
 RUN pip3 install ./server
 RUN pip install --upgrade pydantic
 RUN pip install --upgrade sqlmodel

@@ -50,7 +50,7 @@ class AssemblyBase(RDTSDatabase):
 
 class Assembly(AssemblyBase, table=True):
     __tablename__ = "assemblies"
-    # idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
+    #idx: Optional[int] = Field(None, primary_key=True, sa_column_kwargs={"autoincrement": True})
     name: str = Field(None, primary_key=True)
     crystals: list["CrystalState"] = Relationship(back_populates="assembly")
     timestamp: datetime
